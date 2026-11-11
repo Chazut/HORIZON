@@ -22,13 +22,24 @@ internal sealed class FreecamBridge
     private FastBlur? _deathBlur;
     public bool Ready => Controller != null && Script != null && Script.gameObject.activeInHierarchy;
 
+    // Check readiness before deferring death without taking the camera away from Killcam.
+    public static bool CanAttach(LocalGame game)
+    {
+        var player = game.LocalPlayer;
+        var camera = player != null ? player.GetComponent<PlayerCameraController>()?.Camera : null;
+        var script = camera != null ? camera.GetComponent<CameraScript>() : null;
+        return FreecamPlugin.FreecamControllerInstance != null && script != null &&
+            script.gameObject.activeInHierarchy && game.PlayerOwner != null && game.GameUi != null;
+    }
+
     public bool Attach(LocalGame game)
     {
         var controller = FreecamPlugin.FreecamControllerInstance;
         var player = game.LocalPlayer;
         var camera = player != null ? player.GetComponent<PlayerCameraController>()?.Camera : null;
         var script = camera != null ? camera.GetComponent<CameraScript>() : null;
-        if (controller == null || script == null || player == null || game.PlayerOwner == null) return false;
+        if (controller == null || script == null || !script.gameObject.activeInHierarchy || player == null ||
+            game.PlayerOwner == null || game.GameUi == null) return false;
 
         Controller = controller;
         Script = script;

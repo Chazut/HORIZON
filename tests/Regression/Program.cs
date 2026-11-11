@@ -77,10 +77,24 @@ using var plugin = AssemblyDefinition.ReadAssembly(Path.Combine(project, "bin/Re
 using var game = AssemblyDefinition.ReadAssembly(Path.Combine(root, "EscapeFromTarkov_Data/Managed/Assembly-CSharp.dll"), parameters);
 using var freecam = AssemblyDefinition.ReadAssembly(Path.Combine(root, "BepInEx/plugins/Terkoiz.Freecam/Terkoiz.Freecam.dll"), parameters);
 var entry = plugin.MainModule.GetType("RaidSpectator.Plugin");
-var dep = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInDependency");
+var dep = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInDependency" && (string)a.ConstructorArguments[0].Value == "com.terkoiz.freecam");
 Check((string)dep.ConstructorArguments[0].Value == "com.terkoiz.freecam" && (string)dep.ConstructorArguments[1].Value == "1.4.8", "Required Freecam version");
 var incompat = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInIncompatibility");
 Check((string)incompat.ConstructorArguments[0].Value == "com.fika.core", "Loader refuses Fika");
+var killcamDep = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInDependency" && (string)a.ConstructorArguments[0].Value == "com.maschine.Killcam");
+Check(Convert.ToInt32(killcamDep.ConstructorArguments[1].Value) == 2, "Killcam remains an optional dependency");
+string killcamPath = Path.Combine(root, "BepInEx/plugins/maschine-Killcam.dll");
+if (File.Exists(killcamPath))
+{
+    using var killcam = AssemblyDefinition.ReadAssembly(killcamPath, parameters);
+    var replayField = killcam.MainModule.GetType("Killcam.Plugin").Fields.Single(f => f.Name == "ReplayCtrl");
+    Check(replayField.IsPublic && replayField.IsStatic, "Installed Killcam exposes its replay controller");
+    var replay = replayField.FieldType.Resolve();
+    var pending = replay.Fields.Single(f => f.Name == "PendingReplayKiller");
+    Check(pending.IsPublic && pending.IsStatic, "Installed Killcam pending state covers the startup delay");
+    var playing = replay.Properties.Single(p => p.Name == "IsPlaying");
+    Check(playing.GetMethod.IsPublic && !playing.GetMethod.IsStatic && playing.PropertyType.FullName == "System.Boolean", "Installed Killcam playback state contract");
+}
 var baseGame = game.MainModule.GetType("EFT.BaseLocalGame`1");
 var localGame = game.MainModule.GetType("EFT.LocalGame");
 var deathMethod = baseGame.Methods.Single(m => m.Name == "InitiateGameStopping");

@@ -14,6 +14,7 @@ namespace RaidSpectator;
 
 [BepInPlugin(Id, "Raid Spectator", "0.1.0")]
 [BepInDependency("com.terkoiz.freecam", "1.4.8")]
+[BepInDependency(KillcamBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInIncompatibility("com.fika.core")]
 public sealed class Plugin : BaseUnityPlugin
 {
@@ -21,6 +22,7 @@ public sealed class Plugin : BaseUnityPlugin
     private static Plugin? _instance;
     private readonly SpectatorSession _session = new();
     private readonly FreecamBridge _camera = new();
+    private readonly KillcamBridge _killcam = new();
     private readonly Harmony _harmony = new(Id);
     private ConfigEntry<bool> _enabled = null!;
     private ConfigEntry<KeyboardShortcut> _menuKey = null!;
@@ -29,7 +31,8 @@ public sealed class Plugin : BaseUnityPlugin
     private GameWorld? _world;
     private FieldInfo _sessionStart = null!;
     private Func<bool>? _configurationVisible;
-    private bool _menuOpen, _preparedEnd, _quitting;
+    private bool _menuOpen, _preparedEnd, _quitting, _cameraActive;
+    private bool CameraWatching => _session.Watching && _cameraActive;
     private GUIStyle? _titleStyle, _textStyle, _buttonStyle;
     private Texture2D? _panelTexture;
 
@@ -48,6 +51,11 @@ public sealed class Plugin : BaseUnityPlugin
             _sessionStart = AccessTools.Field(typeof(BaseLocalGame<EftGamePlayerOwner>), "SessionStartTime")
                 ?? throw new MissingFieldException("BaseLocalGame.SessionStartTime");
             if (_sessionStart.FieldType != typeof(DateTime)) throw new InvalidOperationException("Unexpected raid clock type");
+            if (Chainloader.PluginInfos.TryGetValue(KillcamBridge.PluginId, out var killcam))
+            {
+                _killcam.Bind(killcam.Instance.GetType());
+                Logger.LogInfo("Killcam detected. Freecam will start after its replay and live tail finish.");
+            }
             // Optional: allow F12 configuration without fighting over its mouse cursor.
             if (Chainloader.PluginInfos.TryGetValue("com.bepis.bepinex.configurationmanager", out var manager))
             {
@@ -94,14 +102,13 @@ public sealed class Plugin : BaseUnityPlugin
         {
             var deathTime = DateTimeExtensions.Now;
             var start = (DateTime)_sessionStart.GetValue(game);
-            if (!_camera.Attach(game))
+            if (!FreecamBridge.CanAttach(game))
             {
                 Logger.LogWarning("Freecam is not ready; keeping the normal death/exit flow.");
                 return false;
             }
-            if (!_session.Begin(true, true, _camera.Ready, player.ProfileId, game.PastTime, start, deathTime))
+            if (!_session.Begin(true, true, true, player.ProfileId, game.PastTime, start, deathTime))
             {
-                _camera.Release();
                 return false;
             }
             _game = game;
@@ -109,9 +116,9 @@ public sealed class Plugin : BaseUnityPlugin
             _world = game.GameWorld;
             _menuOpen = false;
             _preparedEnd = false;
-            _camera.SetMenu(false);
+            _cameraActive = false;
             StartCoroutine(AfterDeathDispatch());
-            Logger.LogInfo($"Spectating after death: profile={player.ProfileId}, played={_session.PlayedSeconds:F1}s. Native Killed result deferred until exit/timer.");
+            Logger.LogInfo($"Death held for spectator mode: profile={player.ProfileId}, played={_session.PlayedSeconds:F1}s. Waiting for death callbacks/Killcam; native Killed result deferred until exit/timer.");
             return true;
         }
         catch (Exception e)
@@ -125,10 +132,49 @@ public sealed class Plugin : BaseUnityPlugin
     private IEnumerator AfterDeathDispatch()
     {
         var world = _world;
+        // Killcam starts from an OnDead postfix, after our native death callback.
+        // Leave its preparation, playback, live tail and cleanup entirely in charge.
         yield return null;
-        if (!_session.Watching || !ReferenceEquals(world, _world)) yield break;
-        try { _camera.ClearDeathEffects(); }
-        catch (Exception e) { Logger.LogError($"Death effects could not be cleared: {e}"); LeaveRaid("camera-error"); }
+        float deadline = Time.realtimeSinceStartup + 120f;
+        bool loggedWait = false;
+        while (_session.Watching && ReferenceEquals(world, _world))
+        {
+            if (!TryReadKillcam(out bool busy)) yield break;
+            if (!busy) break;
+            if (!loggedWait)
+            {
+                Logger.LogInfo("Waiting for Killcam to release the camera; raid stays running.");
+                loggedWait = true;
+            }
+            if (Time.realtimeSinceStartup >= deadline)
+            {
+                Logger.LogError("Killcam did not finish within 120s; returning to the normal Killed exit instead of taking its camera.");
+                LeaveRaid("killcam-timeout");
+                yield break;
+            }
+            yield return null;
+        }
+        if (!_session.Watching || !ReferenceEquals(world, _world) || _game == null) yield break;
+        try
+        {
+            if (!_camera.Attach(_game)) throw new InvalidOperationException("Freecam camera disappeared during the handoff");
+            _cameraActive = true;
+            _camera.SetMenu(false);
+            Logger.LogInfo($"Freecam active after {(loggedWait ? "Killcam" : "death callbacks")}. Escape opens Leave raid.");
+        }
+        catch (Exception e) { Logger.LogError($"Could not take over the spectator camera: {e}"); LeaveRaid("camera-error"); }
+    }
+
+    private bool TryReadKillcam(out bool busy)
+    {
+        try { busy = _killcam.IsBusy(); return true; }
+        catch (Exception e)
+        {
+            busy = false;
+            Logger.LogError($"Could not read Killcam state; preserving the normal death exit: {e}");
+            LeaveRaid("killcam-error");
+            return false;
+        }
     }
 
     private void Update()
@@ -141,17 +187,18 @@ public sealed class Plugin : BaseUnityPlugin
             return;
         }
         if (!_session.Watching) return;
-        if (!_enabled.Value || !_camera.Ready)
+        if (!_enabled.Value || (_cameraActive && !_camera.Ready))
         {
             LeaveRaid(_enabled.Value ? "camera-lost" : "disabled");
             return;
         }
+        if (!_cameraActive) return;
         if (!ConfigurationIsOpen() && (Input.GetKeyDown(KeyCode.Escape) || _menuKey.Value.IsDown())) _menuOpen = !_menuOpen;
     }
 
     private void LateUpdate()
     {
-        if (_session.Watching) _camera.SetMenu(_menuOpen || ConfigurationIsOpen());
+        if (CameraWatching) _camera.SetMenu(_menuOpen || ConfigurationIsOpen());
     }
 
     private bool ConfigurationIsOpen()
@@ -193,6 +240,7 @@ public sealed class Plugin : BaseUnityPlugin
         _player = null;
         _preparedEnd = false;
         _menuOpen = false;
+        _cameraActive = false;
     }
 
     private static bool DeathPrefix(BaseLocalGame<EftGamePlayerOwner> __instance) =>
@@ -229,11 +277,11 @@ public sealed class Plugin : BaseUnityPlugin
     }
 
     private static bool FreecamInputPrefix(FreecamController __instance) =>
-        _instance == null || !_instance._session.Watching || !ReferenceEquals(_instance._camera.Controller, __instance);
+        _instance == null || !_instance.CameraWatching || !ReferenceEquals(_instance._camera.Controller, __instance);
 
     private static bool FreecamActivePrefix(FreecamController __instance, ref bool __result)
     {
-        if (_instance == null || !_instance._session.Watching || !ReferenceEquals(_instance._camera.Controller, __instance)) return true;
+        if (_instance == null || !_instance.CameraWatching || !ReferenceEquals(_instance._camera.Controller, __instance)) return true;
         // Opening our menu pauses Freecam input, not camera ownership (or ForceSetPosition
         // would snap the camera back to the corpse).
         __result = true;
@@ -242,7 +290,7 @@ public sealed class Plugin : BaseUnityPlugin
 
     private void OnGUI()
     {
-        if (!_session.Watching) return;
+        if (!CameraWatching) return;
         if (_titleStyle == null)
         {
             _titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 17, fontStyle = FontStyle.Bold };

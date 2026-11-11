@@ -9,6 +9,7 @@ Keep watching your solo SPT raid after you die. The mod automatically switches t
 - Requires [Freecam 1.4.8](https://sp-mod.com/mod/164/freecam), installed separately.
 - Extract the ZIP into your SPT game folder.
 - After death, move using Freecam's controls and settings.
+- If maschine-Killcam is installed, its replay and live tail finish first, then Freecam takes over automatically. Killcam is optional.
 - Press **Escape** to release the mouse, then click **Leave raid**. **Resume Freecam** returns to the camera.
 - Configure the enable toggle and menu key under **F12 > Raid Spectator**.
 
@@ -37,9 +38,12 @@ Before release, verify in real raids:
 5. Extract alive and play another raid without restarting: neither case inherits spectator state.
 6. Try dying with inventory open, without ORBIT, and as a player Scav.
 7. Check Fika/missing Freecam loader refusal and camera-not-ready fallback.
+8. Die with Killcam enabled: let the replay and live tail finish, then check Freecam and Leave raid. Repeat without a replay (for example, no killer recording). The replay must not fight the spectator camera.
 
 Look for `[Raid Spectator]` in `BepInEx/LogOutput.log`. Logging is limited to startup, death, exit and errors; there is no per-frame file output.
 
 ## Implementation
 
 The plugin delays the local death shutdown before `LocalGame.Stop` stops bot scenarios. It lets the real death callbacks, corpse creation and kill tracking run. Exit and timeout resume the native game shutdown and SPT profile-saving flow with the original Killed outcome. Freecam supplies the camera and its controls; it is not bundled or modified.
+
+The optional Killcam integration observes its pending/playback state without changing the replay or its configuration. Camera ownership and spectator input start only after replay cleanup. If its API cannot be read, or a replay stays stuck for 120 seconds, the mod preserves the normal Killed exit instead of seizing the camera. This handoff has automated checks against the installed Killcam API; a real raid still needs validation.
