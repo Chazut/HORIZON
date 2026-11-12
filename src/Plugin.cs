@@ -1,20 +1,24 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
+using System.Reflection.Emit;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using Comfort.Common;
 using EFT;
+using EFT.HealthSystem;
 using HarmonyLib;
 using Terkoiz.Freecam;
 using UnityEngine;
 
 namespace RaidSpectator;
 
-[BepInPlugin(Id, "Raid Spectator", "0.1.0")]
+[BepInPlugin(Id, "Raid Spectator", "0.2.0")]
 [BepInDependency("com.terkoiz.freecam", "1.4.8")]
 [BepInDependency(KillcamBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(BotDebugBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInIncompatibility("com.fika.core")]
 public sealed class Plugin : BaseUnityPlugin
 {
@@ -23,22 +27,32 @@ public sealed class Plugin : BaseUnityPlugin
     private readonly SpectatorSession _session = new();
     private readonly FreecamBridge _camera = new();
     private readonly KillcamBridge _killcam = new();
+    private readonly BotDebugBridge _botDebug = new();
+    private readonly ExtractedPlayer _extractedPlayer = new();
+    private readonly PmcNavigator _navigator = new();
     private readonly Harmony _harmony = new(Id);
     private ConfigEntry<bool> _enabled = null!;
+    private ConfigEntry<bool> _afterExtraction = null!, _cyclePmcs = null!, _autoBotDebug = null!;
     private ConfigEntry<KeyboardShortcut> _menuKey = null!;
     private LocalGame? _game;
     private Player? _player;
     private GameWorld? _world;
     private FieldInfo _sessionStart = null!;
     private Func<bool>? _configurationVisible;
-    private bool _menuOpen, _preparedEnd, _quitting, _cameraActive;
+    private bool _menuOpen, _preparedEnd, _quitting, _cameraActive, _botDebugRequested;
     private bool CameraWatching => _session.Watching && _cameraActive;
+    private bool Extracted => _session.Extracted && _player != null;
+    private ExitStatus SavedResult => _session.Outcome == WatchOutcome.Survived ? ExitStatus.Survived :
+        _session.Outcome == WatchOutcome.Runner ? ExitStatus.Runner : ExitStatus.Killed;
     private GUIStyle? _titleStyle, _textStyle, _buttonStyle;
     private Texture2D? _panelTexture;
 
     private void Awake()
     {
-        _enabled = Config.Bind("General", "Enabled", true, "Keep a solo raid running after you die and enter Freecam. Disabling this while spectating ends the raid as Killed.");
+        _enabled = Config.Bind("General", "Enabled", true, "Keep a solo raid running after death/extraction and enter Freecam. Disabling while spectating saves your original raid result.");
+        _afterExtraction = Config.Bind("General", "Spectate after extraction", true, "Continue watching after a completed extraction. Keeps the original extraction result, exit and play time. Transit is unchanged. Use Leave raid to save.");
+        _cyclePmcs = Config.Bind("General", "Cycle PMCs with mouse wheel", true, "While spectating, scroll up/down to move only the camera to the next/previous living AI PMC. Freecam wheel zoom is suspended. Scavs, bosses and human players are excluded.");
+        _autoBotDebug = Config.Bind("General", "Automatic BotDebug overlay", true, "Enable BotDebug when Freecam starts and disable it when leaving. Requires the optional BotDebug mod. Does not change its saved configuration.");
         _menuKey = Config.Bind("General", "Spectator menu", new KeyboardShortcut(KeyCode.Escape), "Release the mouse and show Leave raid. Escape always works as a fallback. The raid keeps running while this menu is open.");
         if (Chainloader.PluginInfos.ContainsKey("com.fika.core"))
         {
@@ -56,6 +70,11 @@ public sealed class Plugin : BaseUnityPlugin
                 _killcam.Bind(killcam.Instance.GetType());
                 Logger.LogInfo("Killcam detected. Freecam will start after its replay and live tail finish.");
             }
+            if (Chainloader.PluginInfos.TryGetValue(BotDebugBridge.PluginId, out var botDebug))
+            {
+                try { _botDebug.Bind(botDebug.Instance.GetType().Assembly); }
+                catch (Exception e) { Logger.LogWarning($"BotDebug integration unavailable; spectating remains enabled: {e.Message}"); }
+            }
             // Optional: allow F12 configuration without fighting over its mouse cursor.
             if (Chainloader.PluginInfos.TryGetValue("com.bepis.bepinex.configurationmanager", out var manager))
             {
@@ -70,6 +89,11 @@ public sealed class Plugin : BaseUnityPlugin
             Patch(typeof(Player), "OnGameSessionEnd", nameof(PlayerEndPrefix));
             Patch(typeof(FreecamController), "Update", nameof(FreecamInputPrefix));
             Patch(typeof(FreecamController), "get_IsFreecamActive", nameof(FreecamActivePrefix));
+            Patch(typeof(Player), "ManualUpdate", nameof(PlayerTickPrefix));
+            Patch(typeof(ActiveHealthController), "ManualUpdate", nameof(HealthTickPrefix));
+            Patch(typeof(ActiveHealthController), "ApplyDamage", nameof(DamagePrefix));
+            _harmony.Patch(AccessTools.DeclaredMethod(typeof(Terkoiz.Freecam.Freecam), "Update") ?? throw new MissingMethodException("Freecam.Update"),
+                transpiler: new HarmonyMethod(typeof(Plugin), nameof(FreecamAxisTranspiler)));
             Logger.LogInfo("Ready. Solo only; Freecam 1.4.8 required. Spectator menu: Escape.");
         }
         catch (Exception e)
@@ -88,26 +112,29 @@ public sealed class Plugin : BaseUnityPlugin
         _harmony.Patch(target, prefix: new HarmonyMethod(typeof(Plugin), prefixName) { priority = Priority.First });
     }
 
-    private bool TryWatch(BaseLocalGame<EftGamePlayerOwner> candidate)
+    private bool TryWatch(BaseLocalGame<EftGamePlayerOwner> candidate, ExitStatus result = ExitStatus.Killed, string? exitName = null)
     {
         if (_session.Watching && ReferenceEquals(_game, candidate)) return true;
         if (!_enabled.Value || _session.Phase != SessionPhase.Idle ||
             candidate.GetType() != typeof(LocalGame) || candidate.Status != GameStatus.Started ||
             Chainloader.PluginInfos.ContainsKey("com.fika.core")) return false;
         var game = (LocalGame)candidate;
+        bool extracting = result == ExitStatus.Survived || result == ExitStatus.Runner;
+        if ((result != ExitStatus.Killed && !extracting) || (extracting && !_afterExtraction.Value)) return false;
         var player = game.LocalPlayer;
         if (player == null || !player.IsYourPlayer || player.IsAI || player.HealthController == null ||
-            player.HealthController.IsAlive || game.GameWorld == null || game.ProfileId != player.ProfileId) return false;
+            player.HealthController.IsAlive != extracting || game.GameWorld == null || game.ProfileId != player.ProfileId) return false;
         try
         {
-            var deathTime = DateTimeExtensions.Now;
+            var completionTime = DateTimeExtensions.Now;
             var start = (DateTime)_sessionStart.GetValue(game);
             if (!FreecamBridge.CanAttach(game))
             {
                 Logger.LogWarning("Freecam is not ready; keeping the normal death/exit flow.");
                 return false;
             }
-            if (!_session.Begin(true, true, true, player.ProfileId, game.PastTime, start, deathTime))
+            var outcome = result == ExitStatus.Survived ? WatchOutcome.Survived : result == ExitStatus.Runner ? WatchOutcome.Runner : WatchOutcome.Killed;
+            if (!_session.Begin(true, true, true, player.ProfileId, game.PastTime, start, completionTime, outcome, exitName))
             {
                 return false;
             }
@@ -117,14 +144,15 @@ public sealed class Plugin : BaseUnityPlugin
             _menuOpen = false;
             _preparedEnd = false;
             _cameraActive = false;
+            if (extracting) _extractedPlayer.Remove(_world, player);
             StartCoroutine(AfterDeathDispatch());
-            Logger.LogInfo($"Death held for spectator mode: profile={player.ProfileId}, played={_session.PlayedSeconds:F1}s. Waiting for death callbacks/Killcam; native Killed result deferred until exit/timer.");
+            Logger.LogInfo($"Spectator entry: profile={player.ProfileId}, result={result}, exit={exitName ?? "none"}, played={_session.PlayedSeconds:F1}s. Native save deferred until Leave raid/timer.");
             return true;
         }
         catch (Exception e)
         {
             Logger.LogError($"Could not start Freecam; keeping the normal death/exit flow: {e}");
-            Reset();
+            Reset(rollback: true);
             return false;
         }
     }
@@ -139,7 +167,8 @@ public sealed class Plugin : BaseUnityPlugin
         bool loggedWait = false;
         while (_session.Watching && ReferenceEquals(world, _world))
         {
-            if (!TryReadKillcam(out bool busy)) yield break;
+            bool busy = false;
+            if (!_session.Extracted && !TryReadKillcam(out busy)) yield break;
             if (!busy) break;
             if (!loggedWait)
             {
@@ -160,7 +189,8 @@ public sealed class Plugin : BaseUnityPlugin
             if (!_camera.Attach(_game)) throw new InvalidOperationException("Freecam camera disappeared during the handoff");
             _cameraActive = true;
             _camera.SetMenu(false);
-            Logger.LogInfo($"Freecam active after {(loggedWait ? "Killcam" : "death callbacks")}. Escape opens Leave raid.");
+            if (_autoBotDebug.Value) StartBotDebug();
+            Logger.LogInfo($"Freecam active after {(_session.Extracted ? "extraction" : loggedWait ? "Killcam" : "death callbacks")}. Escape: Leave raid; mouse wheel: living PMCs.");
         }
         catch (Exception e) { Logger.LogError($"Could not take over the spectator camera: {e}"); LeaveRaid("camera-error"); }
     }
@@ -194,6 +224,15 @@ public sealed class Plugin : BaseUnityPlugin
         }
         if (!_cameraActive) return;
         if (!ConfigurationIsOpen() && (Input.GetKeyDown(KeyCode.Escape) || _menuKey.Value.IsDown())) _menuOpen = !_menuOpen;
+        // Apply immediately, before the dependency's Update can process a menu click as camera movement.
+        _camera.SetMenu(_menuOpen || ConfigurationIsOpen());
+        if (!_menuOpen && !ConfigurationIsOpen() && _cyclePmcs.Value)
+        {
+            float wheel = Input.GetAxis("Mouse ScrollWheel");
+            if (wheel != 0) _navigator.Move(_world, _camera, wheel > 0 ? 1 : -1);
+        }
+        if (_autoBotDebug.Value && !_botDebugRequested) StartBotDebug();
+        else if (!_autoBotDebug.Value && _botDebugRequested) StopBotDebug();
     }
 
     private void LateUpdate()
@@ -210,8 +249,8 @@ public sealed class Plugin : BaseUnityPlugin
     private void LeaveRaid(string reason)
     {
         if (_game == null || !_session.RequestExit()) return;
-        Logger.LogInfo($"Leaving spectator mode: reason={reason}, result=Killed, played={_session.PlayedSeconds:F1}s.");
-        _game.Stop(_session.ProfileId, ExitStatus.Killed, null, 0f);
+        Logger.LogInfo($"Leaving spectator mode: reason={reason}, result={SavedResult}, played={_session.PlayedSeconds:F1}s.");
+        _game.Stop(_session.ProfileId, SavedResult, _session.ExitName, 0f);
     }
 
     private void PrepareEnd()
@@ -220,6 +259,7 @@ public sealed class Plugin : BaseUnityPlugin
         // GameEnd derives profile playTime and its result callback from this clock. Do this only
         // once ending begins, so spectating never changes the live raid timer or bot timelines.
         _preparedEnd = true;
+        StopBotDebug();
         try { _sessionStart.SetValue(_game, _session.StartForSave(DateTimeExtensions.Now)); }
         catch (Exception e)
         {
@@ -230,8 +270,12 @@ public sealed class Plugin : BaseUnityPlugin
         catch (Exception e) { Logger.LogError($"Could not fully restore the camera; native shutdown will continue: {e}"); }
     }
 
-    private void Reset()
+    private void Reset(bool rollback = false)
     {
+        StopBotDebug();
+        try { _extractedPlayer.Release(rollback); }
+        catch (Exception e) { Logger.LogWarning($"Extracted player cleanup: {e.Message}"); }
+        _navigator.Reset();
         try { _camera.Release(); }
         catch (Exception e) { Logger.LogWarning($"Spectator cleanup: {e.Message}"); }
         _session.Reset();
@@ -251,15 +295,16 @@ public sealed class Plugin : BaseUnityPlugin
     {
         var plugin = _instance;
         if (plugin == null) return true;
-        if (exitStatus == ExitStatus.Killed && profileId == __instance.ProfileId &&
-            plugin._session.Phase == SessionPhase.Idle && plugin.TryWatch(__instance)) return false;
-        var decision = plugin._session.DecideStop(ReferenceEquals(plugin._game, __instance), profileId, exitStatus == ExitStatus.Killed);
+        bool completed = exitStatus == ExitStatus.Killed || exitStatus == ExitStatus.Survived || exitStatus == ExitStatus.Runner;
+        if (completed && profileId == __instance.ProfileId &&
+            plugin._session.Phase == SessionPhase.Idle && plugin.TryWatch(__instance, exitStatus, exitName)) return false;
+        var decision = plugin._session.DecideStop(ReferenceEquals(plugin._game, __instance), profileId, completed);
         if (decision == StopDecision.Defer) return false;
-        if (decision == StopDecision.Killed)
+        if (decision == StopDecision.Captured)
         {
-            if (!plugin._preparedEnd) plugin.Logger.LogInfo($"Completing native raid shutdown: requested={exitStatus}, saved=Killed.");
-            exitStatus = ExitStatus.Killed;
-            exitName = null!;
+            if (!plugin._preparedEnd) plugin.Logger.LogInfo($"Completing native raid shutdown: requested={exitStatus}, saved={plugin.SavedResult}.");
+            exitStatus = plugin.SavedResult;
+            exitName = plugin._session.ExitName!;
             delay = 0f;
             plugin.PrepareEnd();
         }
@@ -270,11 +315,54 @@ public sealed class Plugin : BaseUnityPlugin
     {
         var plugin = _instance;
         if (plugin == null || plugin._session.Phase != SessionPhase.Ending || !ReferenceEquals(plugin._player, __instance)) return;
-        exitStatus = ExitStatus.Killed;
-        exitName = null!;
+        exitStatus = plugin.SavedResult;
+        exitName = plugin._session.ExitName!;
         pastTime = plugin._session.PlayedSeconds;
-        plugin.Logger.LogInfo($"Player result: Killed at {pastTime:F1}s; spectator time excluded from player statistics.");
+        plugin.Logger.LogInfo($"Player result: {exitStatus} at {pastTime:F1}s; spectator time excluded from player statistics.");
     }
+
+    private void StartBotDebug()
+    {
+        _botDebugRequested = true;
+        try { if (_botDebug.Start()) Logger.LogInfo("BotDebug overlay enabled for spectating."); }
+        catch (Exception e) { Logger.LogWarning($"Could not enable BotDebug: {e.Message}"); }
+    }
+
+    private void StopBotDebug()
+    {
+        _botDebugRequested = false;
+        try { _botDebug.Stop(); }
+        catch (Exception e) { Logger.LogWarning($"Could not disable BotDebug: {e.Message}"); }
+    }
+
+    private static bool PlayerTickPrefix(Player __instance) =>
+        _instance?.Extracted != true || !ReferenceEquals(_instance._player, __instance);
+
+    private static bool HealthTickPrefix(ActiveHealthController __instance) =>
+        _instance?.Extracted != true || !ReferenceEquals(_instance._player?.ActiveHealthController, __instance);
+
+    private static bool DamagePrefix(ActiveHealthController __instance, ref float __result)
+    {
+        if (HealthTickPrefix(__instance)) return true;
+        __result = 0;
+        return false;
+    }
+
+    private static IEnumerable<CodeInstruction> FreecamAxisTranspiler(IEnumerable<CodeInstruction> instructions)
+    {
+        var read = AccessTools.Method(typeof(Input), nameof(Input.GetAxis), new[] { typeof(string) });
+        var replacement = AccessTools.Method(typeof(Plugin), nameof(ReadFreecamAxis));
+        int count = 0;
+        foreach (var instruction in instructions)
+        {
+            if (instruction.Calls(read)) { instruction.opcode = OpCodes.Call; instruction.operand = replacement; count++; }
+            yield return instruction;
+        }
+        if (count == 0) throw new InvalidOperationException("Freecam input API changed; spectator wheel interception unavailable");
+    }
+
+    private static float ReadFreecamAxis(string axis) => axis == "Mouse ScrollWheel" &&
+        _instance?.CameraWatching == true && _instance._cyclePmcs.Value ? 0f : Input.GetAxis(axis);
 
     private static bool FreecamInputPrefix(FreecamController __instance) =>
         _instance == null || !_instance.CameraWatching || !ReferenceEquals(_instance._camera.Controller, __instance);
@@ -301,7 +389,7 @@ public sealed class Plugin : BaseUnityPlugin
             _panelTexture.Apply();
         }
         float width = Mathf.Min(330, Screen.width - 24);
-        var rect = new Rect(Screen.width - width - 16, 20, width, _menuOpen ? 204 : 68);
+        var rect = new Rect(Screen.width - width - 16, 20, width, _menuOpen ? 218 : 88);
         int oldDepth = GUI.depth;
         GUI.depth = -100;
         GUI.DrawTexture(rect, _panelTexture);
@@ -309,13 +397,17 @@ public sealed class Plugin : BaseUnityPlugin
         GUILayout.Label("SPECTATING", _titleStyle);
         if (_menuOpen)
         {
-            GUILayout.Label("You died. The raid continues.", _textStyle);
-            GUILayout.Label("Leaving will save your raid as Killed.", _textStyle);
+            GUILayout.Label(_session.Extracted ? "You extracted. The raid continues." : "You died. The raid continues.", _textStyle);
+            GUILayout.Label($"Leave raid to save your original {SavedResult} result.", _textStyle);
             GUILayout.Space(12);
             if (GUILayout.Button("Resume Freecam", _buttonStyle, GUILayout.Height(34))) _menuOpen = false;
             if (GUILayout.Button("Leave raid", _buttonStyle, GUILayout.Height(34))) LeaveRaid("button");
         }
-        else GUILayout.Label("Esc: menu / Leave raid", _textStyle);
+        else
+        {
+            GUILayout.Label("Esc: menu / Leave raid", _textStyle);
+            if (_cyclePmcs.Value) GUILayout.Label(_navigator.Caption, _textStyle);
+        }
         GUILayout.EndArea();
         GUI.depth = oldDepth;
     }

@@ -89,6 +89,106 @@ freecam.gameObject.SetActive(false);
 Check(!FreecamBridge.CanAttach(game) && !new FreecamBridge().Attach(game), "Inactive camera cannot enter spectator mode");
 Check(!bridge.Ready, "Lost camera triggers normal Killed exit instead of trapping the player");
 bridge.Release(ending: true);
+// Extraction removes an alive body without killing it, while the child camera stays active.
+freecam.gameObject.SetActive(true);
+var world = new GameWorld();
+var botGame = new BotGame();
+Comfort.Common.Singleton<IBotGame>.Instance = botGame;
+var local = game.LocalPlayer;
+local.IsYourPlayer = true;
+var collider = new Collider();
+var renderer = new Renderer();
+local.gameObject.Components[typeof(Collider)] = collider;
+local.gameObject.Components[typeof(Renderer)] = renderer;
+cameraOwner.Camera.transform.SetParent(local.Transform.Original, true);
+// Model the dependency script living on that same camera object.
+freecam.gameObject = cameraOwner.Camera.gameObject;
+world.RegisterPlayer(local);
+botGame.BotsController.BotSpawner.AddPlayer(local);
+var extraction = new ExtractedPlayer();
+extraction.Remove(world, local);
+Check(local.HealthController.IsAlive && !local.gameObject.activeInHierarchy, "Extraction hides/inactivates body without a fake death");
+Check(!world.AllAlivePlayersList.Contains(local) && !world.RegisteredPlayers.Contains(local) &&
+    !botGame.BotsController.BotSpawner.Players.Contains(local), "Extracted local player leaves world and AI target registries");
+Check(cameraOwner.Camera.gameObject.activeInHierarchy && cameraOwner.Camera.transform.parent == null, "Child camera remains independent of disabled body");
+Check(!collider.enabled && !renderer.enabled && FreecamBridge.CanAttach(game), "No body collision/rendering and camera remains attachable");
+extraction.Release(rollback: true);
+Check(local.gameObject.activeSelf && collider.enabled && renderer.enabled && world.AllAlivePlayersList.Contains(local) &&
+    botGame.BotsController.BotSpawner.Players.Contains(local), "Entry failure restores body and registries");
+Check(cameraOwner.Camera.transform.parent == local.Transform.Original, "Entry rollback restores camera hierarchy");
+extraction.Remove(world, local);
+extraction.Release(rollback: false);
+Check(!local.gameObject.activeSelf && !world.AllAlivePlayersList.Contains(local), "Normal shutdown never resurrects an extracted target");
+Check(cameraOwner.Camera.transform.parent == local.Transform.Original, "Shutdown does not leave detached camera behind");
+extraction.Release(false);
+local.gameObject.SetActive(true);
+Check(bridge.Attach(game), "Camera attaches for cycle tests");
+var localPosition = local.Position;
+Player Bot(string id, WildSpawnType role, bool alive = true, bool ai = true)
+{
+    var bot = new Player { ProfileId = id, IsAI = ai };
+    bot.Profile.Info.Settings.Role = role;
+    bot.Profile.Nickname = id;
+    bot.HealthController.IsAlive = alive;
+    bot.gameObject.transform.position = new Vector3(id.Length * 10, 0, 0);
+    world.AllAlivePlayersList.Add(bot);
+    return bot;
+}
+var pmcA = Bot("a", WildSpawnType.pmcUSEC);
+var pmcB = Bot("bb", WildSpawnType.pmcBEAR);
+Bot("scav", WildSpawnType.assault);
+Bot("boss", WildSpawnType.boss);
+Bot("guard", WildSpawnType.follower);
+Bot("raider", WildSpawnType.pmcBot);
+Bot("dead", WildSpawnType.pmcUSEC, alive: false);
+Bot("human", WildSpawnType.pmcUSEC, ai: false);
+Bot("inactive", WildSpawnType.pmcUSEC).gameObject.SetActive(false);
+var navigator = new PmcNavigator();
+navigator.Move(world, bridge, 1);
+Check(navigator.Caption == "a (1/2)", "Only living active AI PMCs are candidates, not raiders/humans/scavs/bosses");
+Check(freecam.transform.position.x == pmcA.Position.x && local.Position.Equals(localPosition), "Cycle teleports camera, never player body");
+navigator.Move(world, bridge, 1);
+Check(navigator.Caption == "bb (2/2)" && freecam.transform.position.x == pmcB.Position.x, "Wheel advances to second PMC");
+navigator.Move(world, bridge, -1);
+Check(navigator.Caption == "a (1/2)", "Reverse wheel goes back");
+pmcA.HealthController.IsAlive = false;
+navigator.Move(world, bridge, 1);
+Check(navigator.Caption == "bb (1/1)", "A PMC killed since last scroll is excluded");
+Physics.Hit = new RaycastHit { transform = new GameObject().transform, point = new Vector3(20, 1.5f, -1) };
+navigator.Move(world, bridge, 1);
+Check(freecam.transform.position.z > -1, "Camera stops on the PMC side of an intervening wall");
+Physics.Hit = null;
+pmcB.HealthController.IsAlive = false;
+var previousPosition = freecam.transform.position;
+navigator.Move(world, bridge, 1);
+Check(navigator.Caption == "No living PMCs to visit" && freecam.transform.position.Equals(previousPosition), "No PMCs leaves camera in place with useful hint");
+navigator.Reset();
+Check(navigator.Caption == "Wheel: previous / next PMC", "New raid does not retain old PMC name");
+bridge.Release();
+// Optional overlay: activate via its own callback/API, switch off on leave, never persist.
+var overlay = new BotDebugBridge();
+Check(!overlay.Start(), "Missing BotDebug is nonfatal");
+var toggle = DrakiaXYZ.BotDebug.Helpers.Settings.Enable;
+int disableEvents = 0;
+toggle.Changed = on => { if (!on) disableEvents++; };
+overlay.Bind(typeof(DrakiaXYZ.BotDebug.Helpers.Settings).Assembly);
+Check(overlay.Start() && toggle.Value && DrakiaXYZ.BotDebug.Components.BotDebugComponent.Starts == 1, "Start enables actual overlay even if config callback was not enough");
+Check(toggle.ConfigFile.Saves == 0 && toggle.ConfigFile.SaveOnConfigSet, "Auto activation never rewrites dependency config");
+overlay.Stop();
+Check(!toggle.Value && disableEvents == 1 && toggle.ConfigFile.Saves == 0, "Leaving disables overlay without saving temporary state");
+overlay.Stop();
+Check(disableEvents == 1, "Repeated cleanup is harmless");
+toggle.ConfigFile.SaveOnConfigSet = false;
+overlay.Start();
+overlay.Stop();
+Check(!toggle.Value && !toggle.ConfigFile.SaveOnConfigSet, "Existing save policy restored");
+toggle.Changed = _ => throw new InvalidOperationException("Destroyed scene");
+try { overlay.Start(); } catch (InvalidOperationException) { }
+Check(!toggle.ConfigFile.SaveOnConfigSet, "Callback failure cannot enable automatic file writes");
+toggle.Changed = null;
+overlay.Stop();
+Check(!toggle.Value, "Failed activation can still clean up overlay");
+
 Console.WriteLine($"PASS: {count} production camera-bridge checks with Unity doubles (not a rendered raid).");
 
 public static class FakeKillcamPlugin { public static FakeKillcamController? ReplayCtrl; }

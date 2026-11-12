@@ -3,5 +3,9 @@
   <ItemGroup>
     <Compile Include="../../src/FreecamBridge.cs" Link="Production/FreecamBridge.cs" />
     <Compile Include="../../src/KillcamBridge.cs" Link="Production/KillcamBridge.cs" />
+    <Compile Include="../../src/BotDebugBridge.cs" Link="Production/BotDebugBridge.cs" />
+    <Compile Include="../../src/ExtractedPlayer.cs" Link="Production/ExtractedPlayer.cs" />
+    <Compile Include="../../src/PmcCycle.cs" Link="Production/PmcCycle.cs" />
+    <Compile Include="../../src/PmcNavigator.cs" Link="Production/PmcNavigator.cs" />
   </ItemGroup>
 </Project>

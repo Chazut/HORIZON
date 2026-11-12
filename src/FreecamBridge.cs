@@ -78,6 +78,11 @@ internal sealed class FreecamBridge
         Cursor.visible = open;
     }
 
+    public void MoveTo(Vector3 position, Quaternion rotation)
+    {
+        if (Ready) Script!.transform.SetPositionAndRotation(position, rotation);
+    }
+
     public void Release(bool ending = false)
     {
         // Also used when entering spectator mode fails: restore exactly what we touched.

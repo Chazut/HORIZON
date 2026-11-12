@@ -7,6 +7,7 @@
     <SptRoot Condition="'$(SptRoot)' == ''">C:\Games\SPT-4.1</SptRoot>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/PmcCycle.cs" Link="Production/PmcCycle.cs" />
     <Compile Include="../../src/SpectatorSession.cs" Link="Production/SpectatorSession.cs" />
     <Reference Include="Mono.Cecil" HintPath="$(SptRoot)/BepInEx/core/Mono.Cecil.dll" />
   </ItemGroup>

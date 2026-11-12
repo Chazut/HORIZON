@@ -3,9 +3,10 @@ using System;
 namespace RaidSpectator;
 
 internal enum SessionPhase { Idle, Watching, Ending }
-internal enum StopDecision { Original, Defer, Killed }
+internal enum StopDecision { Original, Defer, Captured }
+internal enum WatchOutcome { Killed, Survived, Runner }
 
-// The death outcome belongs to one local game and one profile. No health or bot state is modified.
+// Preserve the completed player's result, never substitute time spent observing.
 internal sealed class SpectatorSession
 {
     public SessionPhase Phase { get; private set; }
@@ -13,16 +14,22 @@ internal sealed class SpectatorSession
     public float PlayedSeconds { get; private set; }
     public TimeSpan PlayedDuration { get; private set; }
     public bool Watching => Phase == SessionPhase.Watching;
+    public WatchOutcome Outcome { get; private set; }
+    public string? ExitName { get; private set; }
+    public bool Extracted => Outcome != WatchOutcome.Killed && Phase != SessionPhase.Idle;
 
-    public bool Begin(bool eligible, bool dead, bool cameraReady, string profileId,
-        float playedSeconds, DateTime sessionStart, DateTime deathTime)
+    public bool Begin(bool eligible, bool completed, bool cameraReady, string profileId,
+        float playedSeconds, DateTime sessionStart, DateTime completionTime,
+        WatchOutcome outcome = WatchOutcome.Killed, string? exitName = null)
     {
-        if (Phase != SessionPhase.Idle || !eligible || !dead || !cameraReady ||
+        if (Phase != SessionPhase.Idle || !eligible || !completed || !cameraReady ||
             string.IsNullOrEmpty(profileId) || float.IsNaN(playedSeconds) || float.IsInfinity(playedSeconds))
             return false;
         ProfileId = profileId;
         PlayedSeconds = Math.Max(0, playedSeconds);
-        PlayedDuration = deathTime > sessionStart ? deathTime - sessionStart : TimeSpan.Zero;
+        PlayedDuration = completionTime > sessionStart ? completionTime - sessionStart : TimeSpan.Zero;
+        Outcome = outcome;
+        ExitName = outcome == WatchOutcome.Killed ? null : exitName;
         Phase = SessionPhase.Watching;
         return true;
     }
@@ -34,13 +41,13 @@ internal sealed class SpectatorSession
         return true;
     }
 
-    public StopDecision DecideStop(bool sameGame, string profileId, bool killed)
+    public StopDecision DecideStop(bool sameGame, string profileId, bool completionNotification)
     {
         if (!sameGame || Phase == SessionPhase.Idle || profileId != ProfileId) return StopDecision.Original;
-        // Repeated death notifications must not terminate an established spectator session.
-        if (Watching && killed) return StopDecision.Defer;
+        // Repeated death/extraction notifications must not terminate an established session.
+        if (Watching && completionNotification) return StopDecision.Defer;
         Phase = SessionPhase.Ending;
-        return StopDecision.Killed;
+        return StopDecision.Captured;
     }
 
     public DateTime StartForSave(DateTime now) => now - PlayedDuration;
@@ -51,5 +58,7 @@ internal sealed class SpectatorSession
         ProfileId = "";
         PlayedSeconds = 0;
         PlayedDuration = TimeSpan.Zero;
+        Outcome = WatchOutcome.Killed;
+        ExitName = null;
     }
 }
