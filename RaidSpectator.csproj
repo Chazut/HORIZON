@@ -4,9 +4,10 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <AssemblyName>RaidSpectator</AssemblyName>
-    <Version>0.2.1</Version>
+    <Version>0.3.0</Version>
     <Authors>Chazut</Authors>
-    <Description>Continue watching a solo SPT raid after death using Terkoiz Freecam.</Description>
+    <Product>HORIZON</Product>
+    <Description>Keep watching solo SPT raids after death or extraction, with Freecam, bot cycling and optional BotDebug.</Description>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <SptRoot Condition="'$(SptRoot)' == ''">C:\Games\SPT-4.1</SptRoot>
   </PropertyGroup>

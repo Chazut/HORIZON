@@ -10,6 +10,19 @@ internal sealed class BotDebugBridge
     private ConfigEntry<bool>? _enable;
     private Action? _ensureEnabled;
     private bool _owned;
+    public bool Available => _enable != null;
+    public bool Enabled => _enable?.Value == true;
+
+    // Also claim overlays enabled manually during this spectator session so the
+    // normal leave/rollback path always turns them off.
+    public void BeginSession() { if (Available) _owned = true; }
+
+    public void Disable()
+    {
+        if (!Available) return;
+        _owned = true;
+        SetTemporary(false);
+    }
 
     public void Bind(Assembly assembly)
     {

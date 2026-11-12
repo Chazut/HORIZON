@@ -164,10 +164,36 @@ navigator.Move(world, bridge, 1);
 Check(navigator.Caption == "No living PMCs to visit" && freecam.transform.position.Equals(previousPosition), "No PMCs leaves camera in place with useful hint");
 navigator.Reset();
 Check(navigator.Caption == "Wheel: previous / next PMC", "New raid does not retain old PMC name");
+// HORIZON: filters can be changed mid-session without retaining a stale target.
+navigator.SetFilter(BotFilter.AllBots);
+Check(navigator.Caption == "Wheel: previous / next bot", "Changing to all bots clears old target caption");
+var allTargets = new List<string>();
+for (int i = 0; i < 4; i++)
+{
+    navigator.Move(world, bridge, 1, 5f);
+    allTargets.Add(navigator.Caption.Split(' ')[0]);
+}
+Check(allTargets.SequenceEqual(new[] { "boss", "guard", "raider", "scav" }), "All bots visits bosses, guards, raiders and Scavs, excluding humans, corpses and inactive objects");
+Check(freecam.transform.position.z == -5f && local.Position.Equals(localPosition), "Configured visit distance moves only the camera");
+navigator.Move(world, bridge, 1);
+Check(navigator.Caption == "boss (1/4)", "All-bot navigation wraps");
+navigator.SetFilter(BotFilter.PmcOnly);
+navigator.Move(world, bridge, 1);
+Check(navigator.Caption == "No living PMCs to visit", "Switching back never visits the previous non-PMC target");
+pmcB.HealthController.IsAlive = true;
+navigator.Move(world, bridge, -1);
+Check(navigator.Caption == "bb (1/1)", "PMC cycling resumes when an eligible bot is available");
+navigator.SetFilter(BotFilter.AllBots);
+navigator.Reset();
+Check(navigator.Caption == "Wheel: previous / next bot", "Raid reset retains selected filter but no scene references or nickname");
+foreach (var bot in world.AllAlivePlayersList) bot.HealthController.IsAlive = false;
+previousPosition = freecam.transform.position;
+navigator.Move(world, bridge, 1);
+Check(navigator.Caption == "No living bots to visit" && freecam.transform.position.Equals(previousPosition), "Empty all-bot roster leaves camera in place");
 bridge.Release();
 // Optional overlay: activate via its own callback/API, switch off on leave, never persist.
 var overlay = new BotDebugBridge();
-Check(!overlay.Start(), "Missing BotDebug is nonfatal");
+Check(!overlay.Available && !overlay.Enabled && !overlay.Start(), "Missing BotDebug is nonfatal and is not presented as available");
 var toggle = DrakiaXYZ.BotDebug.Helpers.Settings.Enable;
 int disableEvents = 0;
 toggle.Changed = on => { if (!on) disableEvents++; };
@@ -188,6 +214,20 @@ Check(!toggle.ConfigFile.SaveOnConfigSet, "Callback failure cannot enable automa
 toggle.Changed = null;
 overlay.Stop();
 Check(!toggle.Value, "Failed activation can still clean up overlay");
+Check(overlay.Available && !overlay.Enabled, "Bound overlay exposes its actual state");
+overlay.BeginSession();
+Check(!toggle.Value, "Automatic overlay off leaves current state alone at entry");
+toggle.Value = true; // Simulate manually enabling BotDebug from its own UI.
+overlay.Stop();
+Check(!toggle.Value, "Manual overlay enabled during spectating is disabled on leave too");
+overlay.BeginSession();
+overlay.Start();
+overlay.Disable();
+Check(!overlay.Enabled, "Spectator menu can turn overlay off for this raid");
+overlay.Start();
+Check(overlay.Enabled, "Spectator menu can turn overlay on again");
+overlay.Stop();
+Check(!overlay.Enabled && !toggle.ConfigFile.SaveOnConfigSet, "Leave after repeated toggles disables overlay and preserves dependency save policy");
 
 // Regression: extracting the last human empties BotSpawner's human roster, so
 // its debug accessor returns default even though bots are still alive.

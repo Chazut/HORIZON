@@ -1,61 +1,66 @@
-# Raid Spectator
+# HORIZON
 
-Keep watching your solo SPT raid after death or extraction. The mod automatically switches to **Terkoiz Freecam** while the bots and raid timer continue running.
+Your raid ends. The world keeps going.
 
-**Early test build: 0.2.1.** Built against SPT 4.1.6 and Freecam 1.4.8. Automated checks pass; in-game validation is still required.
+Keep watching a solo SPT raid after death or extraction, using **Terkoiz Freecam**. Move freely, jump between bots and optionally show BotDebug's overlay.
 
-0.2.1 maintains physics transform synchronization after death/extraction, including during Killcam and while the spectator menu is open. EFT normally performs that work from the local player's hands update, which is no longer reliable once the player is gone. This addresses a cause of bots falling through the map or failing to move while spectating. It does not alter AI decisions, teleport bots, or force all scenery to render. Verification in a real raid is still needed for the reported Shoreline falls and stationary bot.
+**0.3.0 test build** for SPT 4.1.6. Previously called Raid Spectator. Automated checks pass; the new controls still need testing in a real raid.
 
-It also fixes the BotDebug overlay after extraction: EFT's debug accessor returns empty snapshots when its human-player list is empty. While spectating, BotDebug now reads the same native debug snapshots directly from living bots. Projection, draw distance and the displayed distance use the Freecam camera. The spectator remains removed from combat and normal BotDebug behavior resumes on exit. BotDebug stays optional and its DLL is not replaced.
+## Features
 
-## Install and use
+- Continue after death, extraction, or both. Each is configurable.
+- Scroll between **PMCs only** or **all living AI bots**, including Scavs, bosses and guards.
+- Open the spectator menu to switch filters, visit the previous/next bot, toggle BotDebug and leave the raid.
+- Optional BotDebug overlay, **OFF by default**, with camera-relative labels after extraction too.
+- Waits for Killcam to finish before entering Freecam, when Killcam is installed.
+- Keeps the original raid result, exit and play time. Spectating does not upgrade a run-through or grant extra survival time.
 
-- Requires [Freecam 1.4.8](https://sp-mod.com/mod/164/freecam), installed separately.
-- Extract the ZIP into your SPT game folder.
-- After death or a successful extraction, move using Freecam's controls and settings. Transit continues normally.
-- Scroll up/down to jump the camera to the next/previous living AI PMC. Scavs, bosses, raiders and humans are excluded. This moves only the camera; you can move freely again immediately.
-- BotDebug is optional. If installed, its overlay turns on when spectator Freecam starts and off when you leave. Its saved settings are not changed.
-- If maschine-Killcam is installed, its replay and live tail finish first, then Freecam takes over automatically. Killcam is optional.
-- Press **Escape** to release the mouse, then click **Leave raid**. **Resume Freecam** returns to the camera.
-- Under **F12 > Raid Spectator**, you can toggle spectating after extraction, PMC cycling and automatic BotDebug independently (all enabled by default), or change the menu key.
+## Installation
 
-Your original result is preserved: **Killed**, **Survived** or **Runner**, with the original extraction name and play time. Spectator time is excluded from your survival statistics and cannot upgrade a run-through. After extraction, your body is removed from AI targets and hidden, while health simulation and damage are suspended for that player only. The normal raid time limit still ends the session. Use **Leave raid** to save, rather than force-closing the game.
+1. Install **Terkoiz Freecam 1.4.8 or later** separately. It is a required dependency: HORIZON will not load without it.
+2. Extract the HORIZON ZIP into your SPT folder and overwrite the existing DLL if updating.
+3. Launch the game. Configure it under **F12 > HORIZON**.
 
-**Fika is incompatible**, including a Fika installation used alone. BepInEx refuses to load this mod when Fika is present. No server component is needed.
+**Solo only. Fika is incompatible**, even when playing alone with Fika installed. No server component is needed. ORBIT, COMET, BotDebug and Killcam are optional. BotDebug integration is inactive when BotDebug is absent.
 
-Freecam's teleport and return-to-player shortcuts are suspended while spectating. Freecam wheel zoom is suspended only while spectator PMC cycling is enabled. Normal play and transit are unchanged.
+Existing Raid Spectator users can overwrite directly: HORIZON keeps its original DLL path and plugin ID to prevent duplicate installations and retain settings. The configuration remains `BepInEx/config/com.chazut.raidspectator.cfg`.
 
-With ORBIT, keep **Wake for spectators** enabled so Ghost bots wake after the last human dies or leaves the active player roster. This can cost more FPS than Ghost Mode while playing. ORBIT is optional. No additional bot-control logic is included here.
+## Controls
 
-## Validation
+- Move using Freecam's controls and settings.
+- **Mouse wheel:** jump the camera to the next/previous bot in your chosen filter. It does not follow the bot automatically or move its body.
+- **Escape:** open the spectator menu. The raid keeps running while it is open.
+- **Previous / Next:** visit a bot from the menu, even if wheel navigation is disabled.
+- **Leave raid:** end observation and save your original result through the normal game flow.
 
-```powershell
-dotnet build -c Release
-dotnet run --project tests/Regression -c Release
-dotnet run --project tests/CameraHarness -c Release
-```
+The normal raid timer still applies. Transit keeps its normal behavior. Use Leave raid to save rather than force-closing the game.
 
-Before release, verify in real raids:
+## Settings
 
-1. Die with Freecam initially off, then with it already on. The corpse stays dead and bots continue moving/fighting.
-2. Camera movement, audio, rendering and Escape menu work. Freecam teleport cannot move the corpse.
-3. Leave using the button: death screen, killer, quests, insurance and profile save remain correct. Spectator time adds no survival XP.
-4. Let the raid timer expire after dying: normal shutdown still reports Killed.
-5. Extract normally, then separately with a run-through: observe for several minutes and leave. Verify original result, exit, inventory, health and play time. Bots must ignore the extracted body. Test transit too; it must not open spectator mode. Play another raid without restarting to check cleanup.
-6. Try dying with inventory open, without ORBIT, and as a player Scav.
-7. Check Fika/missing Freecam loader refusal and camera-not-ready fallback.
-8. Die with Killcam enabled: let the replay and live tail finish, then check Freecam and Leave raid. Repeat without a replay (for example, no killer recording). The replay must not fight the spectator camera.
+| Setting | Default | Effect |
+| --- | --- | --- |
+| Enabled | ON | Enables HORIZON. Turning it off while spectating ends observation and saves. |
+| Spectate after death | ON | Watch after death, once Killcam has finished if present. |
+| Spectate after extraction | ON | Watch after a successful extraction or run-through. |
+| Camera targets | PMCs only | Choose PMCs only or all living AI bots. Humans, dead and inactive characters are excluded. |
+| Cycle bots with mouse wheel | ON | Switch bots with the wheel. OFF restores Freecam's wheel zoom. |
+| Reverse mouse wheel | OFF | Reverse next/previous scroll direction. |
+| Camera visit distance | 2.5 m | Distance behind a bot when visiting it. Walls can shorten it. |
+| Automatic BotDebug overlay | OFF | Enable BotDebug when spectating starts, if installed. |
+| Show spectator help | ON | Show the small help panel. Escape still works if hidden. |
+| Spectator menu | Escape | Menu shortcut; Escape always remains available. |
 
-9. Scroll both directions with several PMCs alive, then after the selected PMC dies/extracts. No Scavs/bosses/humans should be selected and the body must never move. Check indoors camera placement.
-10. With BotDebug installed, verify overlay activation and shutdown; without it, spectating must still work. Open Escape/F12: scrolling menus must not switch PMCs.
+The menu's **BotDebug overlay (this raid)** toggle changes only the current session, independently of the automatic preference. The overlay is turned off on leaving without changing BotDebug's saved settings. Other menu preferences are saved in HORIZON's configuration.
 
-11. After death and extraction, keep observing for at least five minutes with the camera away from several moving bots. Check both PMC and Scav movement, stairs/doors and ground support. Open the spectator menu and wait through Killcam too. `Spectator physics` should show increasing synchronization counts with `autoSync=False`; `staleBounds` should remain zero. A warning can also describe a legitimate prolonged hold while the mover still requests movement, so review its context. Repeat without ORBIT/COMET when comparing vanilla behavior. Fika remains incompatible with this solo plugin.
-12. With BotDebug 1.8.0, extract with bots still alive and confirm labels appear (not just the Enabled toggle). Move Freecam far from the extraction point and cycle PMCs: labels and their distances must follow the camera. Test manual enable with automatic activation off, death after Killcam, disabling/re-enabling BotDebug and a second raid. `BotDebug spectator data active` confirms the first populated snapshot; absence of this message with only dormant bots is not a rendering failure.
+With ORBIT, keep **Wake for spectators** enabled to observe awake bots after the last human dies or extracts. Keeping more bots awake can cost FPS.
 
-Look for `[Raid Spectator]` in `BepInEx/LogOutput.log`. In addition to entry/exit messages, a physics summary every 30 seconds records synchronization cost and stale collider bounds. Checks every 5 seconds report severe falls, movement without displacement and stale bounds (at most once per bot per 30 seconds). These observations do not change bot behavior. There is no per-frame file output.
+## Troubleshooting
 
-## Implementation
+- No automatic Freecam: check that Freecam loaded, HORIZON is enabled, and the appropriate death/extraction toggle is ON. Missing Freecam or installed Fika prevents HORIZON from loading.
+- No BotDebug labels: install BotDebug and enable its overlay in the spectator menu. Its own label/distance settings still apply.
+- Scrolling changes camera zoom: enable Cycle bots with mouse wheel. Scrolling F12 or the spectator menu does not visit bots.
+- Need diagnostic details: look for `[HORIZON]` in `BepInEx/LogOutput.log`.
 
-The plugin delays the local death shutdown before `LocalGame.Stop` stops bot scenarios. It lets the real death callbacks, corpse creation and kill tracking run. Exit and timeout resume the native game shutdown and SPT profile-saving flow with the captured outcome. Extraction is intercepted at the same shutdown boundary after the game has decided Survived/Runner. The extracted body is removed from the world/AI player lists and deactivated (with its camera detached if necessary), without killing it or unloading its profile. Entry failures restore the touched state and allow the native ending. Freecam supplies the camera and its controls; it is not bundled or modified.
+Build instructions, regression coverage and the in-raid checklist are in [docs/TESTING.md](docs/TESTING.md).
 
-The optional Killcam integration observes its pending/playback state without changing the replay or its configuration. Camera ownership and spectator input start only after replay cleanup. If its API cannot be read, or a replay stays stuck for 120 seconds, the mod preserves the normal Killed exit instead of seizing the camera. This handoff has automated checks against the installed Killcam API; a real raid still needs validation.
+Thanks to **Terkoiz** for Freecam, **DrakiaXYZ** for BotDebug and **maschine** for Killcam. Dependencies are installed separately and are not bundled.

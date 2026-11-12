@@ -131,6 +131,8 @@ using var plugin = AssemblyDefinition.ReadAssembly(Path.Combine(project, "bin/Re
 using var game = AssemblyDefinition.ReadAssembly(Path.Combine(root, "EscapeFromTarkov_Data/Managed/Assembly-CSharp.dll"), parameters);
 using var freecam = AssemblyDefinition.ReadAssembly(Path.Combine(root, "BepInEx/plugins/Terkoiz.Freecam/Terkoiz.Freecam.dll"), parameters);
 var entry = plugin.MainModule.GetType("RaidSpectator.Plugin");
+var identity = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInPlugin");
+Check((string)identity.ConstructorArguments[0].Value == "com.chazut.raidspectator" && (string)identity.ConstructorArguments[1].Value == "HORIZON", "HORIZON keeps the original loader ID so updating cannot load duplicate plugins");
 var physicsApi = game.MainModule.GetType("PhysicsExtensions");
 Check(new[] { "Update", "FixedUpdate" }.All(n => physicsApi.Methods.Any(m => m.Name == n && m.IsStatic && m.Parameters.Count == 0)), "Always-running application physics targets exist");
 var armsLateUpdate = game.MainModule.GetType("EFT.Player").Methods.Single(m => m.Name == "ArmsLateUpdate");

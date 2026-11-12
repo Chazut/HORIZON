@@ -10,5 +10,6 @@
     <Compile Include="../../src/ExtractedPlayer.cs" Link="Production/ExtractedPlayer.cs" />
     <Compile Include="../../src/PmcCycle.cs" Link="Production/PmcCycle.cs" />
     <Compile Include="../../src/PmcNavigator.cs" Link="Production/PmcNavigator.cs" />
+    <Compile Include="../../src/BotFilter.cs" Link="Production/BotFilter.cs" />
   </ItemGroup>
 </Project>
