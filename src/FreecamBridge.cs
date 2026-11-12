@@ -11,6 +11,7 @@ internal sealed class FreecamBridge
 {
     public FreecamController? Controller { get; private set; }
     public CameraScript? Script { get; private set; }
+    public Camera? Camera { get; private set; }
     private Player? _player;
     private GamePlayerOwner? _owner;
     private GameObject? _hud;
@@ -43,6 +44,7 @@ internal sealed class FreecamBridge
 
         Controller = controller;
         Script = script;
+        Camera = camera;
         _player = player;
         _owner = game.PlayerOwner;
         _ownerEnabled = _owner.enabled;
@@ -101,6 +103,7 @@ internal sealed class FreecamBridge
         }
         Controller = null;
         Script = null;
+        Camera = null;
         _owner = null;
         _player = null;
         _hud = null;

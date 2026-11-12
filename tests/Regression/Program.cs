@@ -196,6 +196,23 @@ using (var botdebug = AssemblyDefinition.ReadAssembly(Path.Combine(root, "BepInE
     var settings = botdebug.MainModule.GetType("DrakiaXYZ.BotDebug.Helpers.Settings");
     Check(settings.Fields.Single(f => f.Name == "Enable").FieldType.FullName.Contains("ConfigEntry`1<System.Boolean>"), "BotDebug runtime toggle contract");
     Check(botdebug.MainModule.GetType("DrakiaXYZ.BotDebug.Components.BotDebugComponent").Methods.Any(m => m.Name == "Enable" && m.IsStatic && m.IsPublic), "BotDebug idempotent overlay creation API");
+    var component = botdebug.MainModule.GetType("DrakiaXYZ.BotDebug.Components.BotDebugComponent");
+    var update = component.Methods.Single(m => m.Name == "Update");
+    var draw = component.Methods.Single(m => m.Name == "OnGUI");
+    var behaviour = botdebug.MainModule.GetType("DrakiaXYZ.BotDebug.BotInfo").Methods.Single(m => m.Name == "GetBehaviour");
+    Check(update.Body.Instructions.Count(i => i.Operand is MethodReference m && m.DeclaringType.FullName == "EFT.BotSpawner" && m.Name == "GetBotDebugData") == 1,
+        "Installed BotDebug has exactly one supported native snapshot call");
+    Check(draw.Body.Instructions.Count(i => i.Operand is MethodReference m && m.DeclaringType.FullName == "UnityEngine.Camera" && m.Name == "get_main") == 1,
+        "Installed BotDebug has exactly one camera projection source");
+    foreach (var method in new[] { draw, behaviour })
+    {
+        int chains = 0;
+        var il = method.Body.Instructions;
+        for (int n = 0; n + 1 < il.Count; n++)
+            if (il[n].Operand is MethodReference a && a.DeclaringType.FullName == "EFT.Player" && a.Name == "get_Transform" &&
+                il[n + 1].Operand is MethodReference b && b.Name == "get_position" && b.DeclaringType.FullName == a.ReturnType.FullName) chains++;
+        Check(chains == 1, "Installed BotDebug supports spectator origin rewrite in " + method.Name);
+    }
 }
 foreach (var member in plugin.MainModule.GetMemberReferences().Where(m => new[] { "Assembly-CSharp", "Terkoiz.Freecam", "BepInEx", "Comfort", "0Harmony" }.Contains(m.DeclaringType.GetElementType().Scope.Name)))
 {

@@ -189,7 +189,84 @@ toggle.Changed = null;
 overlay.Stop();
 Check(!toggle.Value, "Failed activation can still clean up overlay");
 
-Console.WriteLine($"PASS: {count} production camera-bridge checks with Unity doubles (not a rendered raid).");
+// Regression: extracting the last human empties BotSpawner's human roster, so
+// its debug accessor returns default even though bots are still alive.
+var debugWorld = new GameWorld();
+var debugSpawner = new BotSpawner();
+var observer = new Player { ProfileId = "observer" };
+var debugBot = new Player { IsAI = true, ProfileId = "bot" };
+debugBot.AIData.BotOwner = new BotOwner();
+debugWorld.AllAlivePlayersList.Add(debugBot);
+Comfort.Common.Singleton<GameWorld>.Instance = debugWorld;
+int debugMessages = 0;
+var view = new BotDebugView(_ => debugMessages++, _ => throw new Exception("Unexpected snapshot failure"));
+Check(!view.Read(debugSpawner, observer, "bot").InitedBotData, "Native empty-human result reproduced without spectating");
+var spectatorCamera = new Camera();
+spectatorCamera.transform.position = new Vector3(2000, 10, 500);
+view.Attach(debugWorld, observer, spectatorCamera);
+observer.gameObject.SetActive(false);
+observer.HealthController.IsAlive = false;
+var debugSnapshot = view.Read(debugSpawner, observer, "bot");
+Check(debugSnapshot.InitedBotData && debugSnapshot.Owner == debugBot.AIData.BotOwner && debugSnapshot.Observer == observer,
+    "Extracted/dead human can observe native bot data without being registered");
+Check(debugSpawner.Players.Count == 0 && !observer.gameObject.activeSelf, "Overlay never resurrects/registers the spectator");
+Check(view.Origin(observer).x == 2000 && view.Camera == spectatorCamera, "Projection and max-distance origin use Freecam, not extracted body");
+spectatorCamera.transform.position = new Vector3(-2000, 20, -500);
+Check(view.Origin(observer).x == -2000, "Origin follows camera movement and PMC cycling immediately");
+view.Read(debugSpawner, observer, "bot");
+Check(debugMessages == 1, "Successful snapshot logging is once per session");
+Check(!view.Read(debugSpawner, observer, "missing").InitedBotData, "Removed bots produce no stale overlay");
+debugBot.HealthController.IsAlive = false;
+Check(!view.Read(debugSpawner, observer, "bot").InitedBotData, "Dead bots omitted");
+debugBot.HealthController.IsAlive = true;
+debugBot.AIData.BotOwner.Active = false;
+Check(!view.Read(debugSpawner, observer, "bot").InitedBotData, "Native inactive-bot behavior preserved");
+debugBot.AIData.BotOwner.Active = true;
+debugSpawner.Players.Add(observer);
+debugSpawner.NativeResult = new DebugBotStruct(new BotOwner(), 0, observer);
+Comfort.Common.Singleton<GameWorld>.Instance = new GameWorld();
+Check(view.Camera == null && view.Read(debugSpawner, observer, "bot").Owner == debugSpawner.NativeResult.Owner,
+    "Changed world restores native lookup and camera immediately");
+Comfort.Common.Singleton<GameWorld>.Instance = debugWorld;
+spectatorCamera.enabled = false;
+Check(view.Camera == null, "Lost camera cannot take over BotDebug");
+spectatorCamera.enabled = true;
+view.Clear();
+Check(view.Camera == null && view.Origin(observer).x == observer.Transform.position.x &&
+    view.Read(debugSpawner, observer, "bot").Owner == debugSpawner.NativeResult.Owner, "Leaving restores ordinary BotDebug reads and origin");
+
+// Exercise production IL rewrites, including branch/exception metadata and
+// refusal of unsupported BotDebug versions. Rendering itself needs a real raid.
+var getData = typeof(BotSpawner).GetMethod("GetBotDebugData")!;
+var getTransform = typeof(Player).GetProperty("Transform")!.GetMethod!;
+var getPosition = typeof(BifacialTransform).GetProperty("position")!.GetMethod!;
+var getCamera = typeof(Camera).GetProperty("main")!.GetMethod!;
+var il = new System.Reflection.Emit.DynamicMethod("labels", typeof(void), Type.EmptyTypes).GetILGenerator();
+var label = il.DefineLabel();
+var dataCall = new HarmonyLib.CodeInstruction(System.Reflection.Emit.OpCodes.Callvirt, getData);
+dataCall.labels.Add(label);
+var rewritten = BotDebugHooks.DataTranspiler(new[] { dataCall }).ToArray();
+Check(Equals(dataCall.operand, getData) && rewritten[0].labels.Contains(label) &&
+    ((System.Reflection.MethodInfo)rewritten[0].operand).GetParameters()[0].ParameterType == typeof(BotSpawner),
+    "Data rewrite preserves stack receiver and labels without mutating input");
+var transformCall = new HarmonyLib.CodeInstruction(System.Reflection.Emit.OpCodes.Callvirt, getTransform);
+var positionCall = new HarmonyLib.CodeInstruction(System.Reflection.Emit.OpCodes.Callvirt, getPosition);
+positionCall.labels.Add(label);
+positionCall.blocks.Add(new HarmonyLib.ExceptionBlock(HarmonyLib.ExceptionBlockType.EndExceptionBlock));
+var draw = BotDebugHooks.DrawTranspiler(new[] { new HarmonyLib.CodeInstruction(System.Reflection.Emit.OpCodes.Call, getCamera), transformCall, positionCall }).ToArray();
+Check(((System.Reflection.MethodInfo)draw[0].operand).ReturnType == typeof(Camera) &&
+    ((System.Reflection.MethodInfo)draw[1].operand).ReturnType == typeof(Vector3) &&
+    draw[2].opcode == System.Reflection.Emit.OpCodes.Nop && draw[2].labels.Contains(label) && draw[2].blocks.Count == 1,
+    "Overlay camera/origin rewrites preserve types and control flow");
+Check(BotDebugHooks.DistanceTranspiler(new[] { transformCall, positionCall }).Count() == 2, "Text distance uses the same origin as drawing");
+try { BotDebugHooks.DataTranspiler(Array.Empty<HarmonyLib.CodeInstruction>()).ToArray(); throw new Exception("Missing native data call accepted"); }
+catch (InvalidOperationException) { count++; }
+try { BotDebugHooks.DrawTranspiler(new[] { transformCall, positionCall }).ToArray(); throw new Exception("Missing native camera call accepted"); }
+catch (InvalidOperationException) { count++; }
+try { BotDebugHooks.DistanceTranspiler(new[] { transformCall }).ToArray(); throw new Exception("Incomplete position chain accepted"); }
+catch (InvalidOperationException) { count++; }
+
+Console.WriteLine($"PASS: {count} production camera/overlay checks with Unity doubles (not a rendered raid).");
 
 public static class FakeKillcamPlugin { public static FakeKillcamController? ReplayCtrl; }
 public class FakeKillcamController

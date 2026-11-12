@@ -28,6 +28,7 @@ public sealed class Plugin : BaseUnityPlugin
     private readonly FreecamBridge _camera = new();
     private readonly KillcamBridge _killcam = new();
     private readonly BotDebugBridge _botDebug = new();
+    private BotDebugView _botDebugView = null!;
     private readonly ExtractedPlayer _extractedPlayer = new();
     private readonly PmcNavigator _navigator = new();
     private readonly SpectatorPhysics _physics = new();
@@ -56,6 +57,7 @@ public sealed class Plugin : BaseUnityPlugin
     {
         _physicsInfo = message => Logger.LogInfo(message);
         _physicsWarning = message => Logger.LogWarning(message);
+        _botDebugView = new BotDebugView(_physicsInfo, _physicsWarning);
         _enabled = Config.Bind("General", "Enabled", true, "Keep a solo raid running after death/extraction and enter Freecam. Disabling while spectating saves your original raid result.");
         _afterExtraction = Config.Bind("General", "Spectate after extraction", true, "Continue watching after a completed extraction. Keeps the original extraction result, exit and play time. Transit is unchanged. Use Leave raid to save.");
         _cyclePmcs = Config.Bind("General", "Cycle PMCs with mouse wheel", true, "While spectating, scroll up/down to move only the camera to the next/previous living AI PMC. Freecam wheel zoom is suspended. Scavs, bosses and human players are excluded.");
@@ -79,7 +81,12 @@ public sealed class Plugin : BaseUnityPlugin
             }
             if (Chainloader.PluginInfos.TryGetValue(BotDebugBridge.PluginId, out var botDebug))
             {
-                try { _botDebug.Bind(botDebug.Instance.GetType().Assembly); }
+                try
+                {
+                    var assembly = botDebug.Instance.GetType().Assembly;
+                    _botDebug.Bind(assembly);
+                    BotDebugHooks.Install(assembly, _botDebugView);
+                }
                 catch (Exception e) { Logger.LogWarning($"BotDebug integration unavailable; spectating remains enabled: {e.Message}"); }
             }
             // Optional: allow F12 configuration without fighting over its mouse cursor.
@@ -111,6 +118,7 @@ public sealed class Plugin : BaseUnityPlugin
         catch (Exception e)
         {
             _harmony.UnpatchSelf();
+            BotDebugHooks.Remove();
             _instance = null;
             Logger.LogError($"Compatibility check failed; normal raid endings remain enabled: {e}");
             enabled = false;
@@ -201,6 +209,7 @@ public sealed class Plugin : BaseUnityPlugin
         {
             if (!_camera.Attach(_game)) throw new InvalidOperationException("Freecam camera disappeared during the handoff");
             _cameraActive = true;
+            _botDebugView.Attach(_world!, _player!, _camera.Camera!);
             _camera.SetMenu(false);
             if (_autoBotDebug.Value) StartBotDebug();
             Logger.LogInfo($"Freecam active after {(_session.Extracted ? "extraction" : loggedWait ? "Killcam" : "death callbacks")}. Escape: Leave raid; mouse wheel: living PMCs.");
@@ -282,6 +291,7 @@ public sealed class Plugin : BaseUnityPlugin
         // GameEnd derives profile playTime and its result callback from this clock. Do this only
         // once ending begins, so spectating never changes the live raid timer or bot timelines.
         _preparedEnd = true;
+        _botDebugView.Clear();
         StopBotDebug();
         Logger.LogInfo($"Spectator physics stopped: syncs={_physics.Count}, meanMs={(_physics.Count > 0 ? _physics.TotalMs / _physics.Count : 0):F3}, maxMs={_physics.MaxMs:F3}.");
         try { _sessionStart.SetValue(_game, _session.StartForSave(DateTimeExtensions.Now)); }
@@ -300,6 +310,7 @@ public sealed class Plugin : BaseUnityPlugin
         try { _extractedPlayer.Release(rollback); }
         catch (Exception e) { Logger.LogWarning($"Extracted player cleanup: {e.Message}"); }
         _navigator.Reset();
+        _botDebugView.Clear();
         _physics.Reset();
         _physicsDiagnostics.Reset();
         _physicsFailureLogged = false;
@@ -470,6 +481,7 @@ public sealed class Plugin : BaseUnityPlugin
         if (!_quitting && _session.Watching && _game != null) LeaveRaid("plugin-unload");
         Reset();
         _harmony.UnpatchSelf();
+        BotDebugHooks.Remove();
         if (_panelTexture != null) Destroy(_panelTexture);
         if (ReferenceEquals(_instance, this)) _instance = null;
     }

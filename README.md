@@ -6,6 +6,8 @@ Keep watching your solo SPT raid after death or extraction. The mod automaticall
 
 0.2.1 maintains physics transform synchronization after death/extraction, including during Killcam and while the spectator menu is open. EFT normally performs that work from the local player's hands update, which is no longer reliable once the player is gone. This addresses a cause of bots falling through the map or failing to move while spectating. It does not alter AI decisions, teleport bots, or force all scenery to render. Verification in a real raid is still needed for the reported Shoreline falls and stationary bot.
 
+It also fixes the BotDebug overlay after extraction: EFT's debug accessor returns empty snapshots when its human-player list is empty. While spectating, BotDebug now reads the same native debug snapshots directly from living bots. Projection, draw distance and the displayed distance use the Freecam camera. The spectator remains removed from combat and normal BotDebug behavior resumes on exit. BotDebug stays optional and its DLL is not replaced.
+
 ## Install and use
 
 - Requires [Freecam 1.4.8](https://sp-mod.com/mod/164/freecam), installed separately.
@@ -48,6 +50,7 @@ Before release, verify in real raids:
 10. With BotDebug installed, verify overlay activation and shutdown; without it, spectating must still work. Open Escape/F12: scrolling menus must not switch PMCs.
 
 11. After death and extraction, keep observing for at least five minutes with the camera away from several moving bots. Check both PMC and Scav movement, stairs/doors and ground support. Open the spectator menu and wait through Killcam too. `Spectator physics` should show increasing synchronization counts with `autoSync=False`; `staleBounds` should remain zero. A warning can also describe a legitimate prolonged hold while the mover still requests movement, so review its context. Repeat without ORBIT/COMET when comparing vanilla behavior. Fika remains incompatible with this solo plugin.
+12. With BotDebug 1.8.0, extract with bots still alive and confirm labels appear (not just the Enabled toggle). Move Freecam far from the extraction point and cycle PMCs: labels and their distances must follow the camera. Test manual enable with automatic activation off, death after Killcam, disabling/re-enabling BotDebug and a second raid. `BotDebug spectator data active` confirms the first populated snapshot; absence of this message with only dormant bots is not a rendering failure.
 
 Look for `[Raid Spectator]` in `BepInEx/LogOutput.log`. In addition to entry/exit messages, a physics summary every 30 seconds records synchronization cost and stale collider bounds. Checks every 5 seconds report severe falls, movement without displacement and stale bounds (at most once per bot per 30 seconds). These observations do not change bot behavior. There is no per-frame file output.
 

@@ -42,7 +42,11 @@ namespace UnityEngine
         public T[] GetComponentsInChildren<T>(bool inactive) => gameObject.Components.Values.OfType<T>().ToArray();
     }
     public class MonoBehaviour : Component { public bool enabled = true; }
-    public class Camera : Component { }
+    public class Camera : MonoBehaviour
+    {
+        public static Camera main { get; set; } = new();
+        public bool isActiveAndEnabled => enabled && gameObject.activeInHierarchy;
+    }
     public class Collider : MonoBehaviour { }
     public class Renderer : MonoBehaviour { }
     public enum QueryTriggerInteraction { Ignore }
@@ -70,15 +74,20 @@ namespace EFT
         public UnityEngine.Transform Original;
         public BifacialTransform(UnityEngine.Transform original) => Original = original;
         public UnityEngine.Vector3 forward => Original.forward;
+        public UnityEngine.Vector3 position => Original.position;
         public UnityEngine.Quaternion rotation => Original.rotation;
     }
-    public class Player : UnityEngine.MonoBehaviour
+    public interface IPlayer { string ProfileId { get; } }
+    public class AIData { public BotOwner? BotOwner; }
+    public class BotOwner { public bool Active = true; }
+    public class Player : UnityEngine.MonoBehaviour, IPlayer
     {
         public EPointOfView PointOfView;
         public bool IsAI, IsYourPlayer;
         public Health HealthController = new();
         public Profile Profile = new();
-        public string ProfileId = "local";
+        public string ProfileId { get; set; } = "local";
+        public AIData AIData = new();
         public UnityEngine.Vector3 Position => gameObject.transform.position;
         public BifacialTransform Transform => new(gameObject.transform);
     }
@@ -87,12 +96,20 @@ namespace EFT
         public List<Player> RegisteredPlayers = new(), AllAlivePlayersList = new();
         public void RegisterPlayer(Player p) { RegisteredPlayers.Add(p); AllAlivePlayersList.Add(p); }
         public void UnregisterPlayer(Player p) { RegisteredPlayers.Remove(p); AllAlivePlayersList.Remove(p); }
+        public Player? GetAlivePlayerByProfileID(string id) => AllAlivePlayersList.FirstOrDefault(p => p.ProfileId == id);
     }
     public class BotSpawner
     {
         public List<Player> Players = new();
         public void DeletePlayer(Player p) => Players.Remove(p);
         public void AddPlayer(Player p) => Players.Add(p);
+        public int NativeReads;
+        public DebugBotStruct NativeResult;
+        public DebugBotStruct GetBotDebugData(IPlayer observer, string profileId)
+        {
+            NativeReads++;
+            return Players.Count == 0 ? default : NativeResult;
+        }
     }
     public class BotsController { public BotSpawner BotSpawner = new(); }
     public interface IBotGame { BotsController BotsController { get; } }
@@ -137,3 +154,11 @@ namespace Terkoiz.Freecam
 }
 public class DeathFade { public int Clears; public void DisableEffect() => Clears++; }
 public class FastBlur { public int Clears; public void Reset() => Clears++; }
+public struct DebugBotStruct
+{
+    public bool InitedBotData;
+    public EFT.BotOwner? Owner;
+    public EFT.IPlayer? Observer;
+    public DebugBotStruct(EFT.BotOwner owner, float dist, EFT.IPlayer observer)
+    { InitedBotData = owner.Active; Owner = owner; Observer = observer; }
+}
