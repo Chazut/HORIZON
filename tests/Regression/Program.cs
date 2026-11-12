@@ -10,6 +10,35 @@ void Check(bool value, string name)
 }
 
 var start = new DateTime(2026, 11, 11, 12, 0, 0, DateTimeKind.Utc);
+// Reproduce the missing synchronization source without pretending to simulate
+// Unity collisions: the transform and the physics-query snapshot are separate.
+// No local player or visible rigidbody remains to synchronize the snapshot.
+var physics = new SpectatorPhysics();
+int copies = 0;
+float transformPosition = 0, queryPosition = 0;
+void Synchronize() { queryPosition = transformPosition; copies++; }
+Check(!physics.Sync(false, false, 1, false, 0, Synchronize) && copies == 0, "No physics intervention while playing/ending");
+Check(!physics.Sync(true, true, 1, false, 0, Synchronize) && copies == 0, "Respect automatic Unity synchronization");
+Check(physics.Sync(true, false, 1, false, 0, Synchronize), "Automatic sync disabled mid-frame can still synchronize");
+for (int frame = 2; frame <= 600; frame++)
+{
+    transformPosition += 0.2f;
+    Check(queryPosition != transformPosition, "No local-player sync leaves a stale physics snapshot");
+    Check(physics.Sync(true, false, frame, false, 0, Synchronize) && queryPosition == transformPosition, "Spectating keeps physical queries current with no visible rigidbody");
+    for (int bot = 0; bot < 30; bot++)
+        Check(!physics.Sync(true, false, frame, false, 0, Synchronize), "World/player callbacks share one synchronization, not one per bot");
+}
+Check(copies == 600 && physics.Count == 600, "One global synchronization per rendered tick");
+Check(physics.Sync(true, false, 600, true, 1f, Synchronize), "Fixed update has its own tick");
+Check(!physics.Sync(true, false, 601, true, 1f, Synchronize), "Same fixed tick is not repeated across render callbacks");
+Check(physics.Sync(true, false, 601, true, 1.02f, Synchronize), "A second fixed step in one frame is synchronized");
+Check(!physics.Sync(false, false, 602, false, 0, Synchronize), "Leaving stops sync immediately");
+physics.Reset();
+Check(physics.Count == 0 && physics.TotalMs == 0 && physics.MaxMs == 0, "Raid cleanup drops timing state");
+Check(physics.Sync(true, false, 600, false, 0, Synchronize), "Rollback/new raid may reuse a frame ID");
+try { physics.Sync(true, false, 601, false, 0, () => throw new InvalidOperationException("test")); }
+catch (InvalidOperationException) { }
+Check(physics.Sync(true, false, 601, false, 0, Synchronize), "Failed synchronization remains retryable");
 var death = start.AddSeconds(190);
 SpectatorSession Begin()
 {
@@ -102,6 +131,18 @@ using var plugin = AssemblyDefinition.ReadAssembly(Path.Combine(project, "bin/Re
 using var game = AssemblyDefinition.ReadAssembly(Path.Combine(root, "EscapeFromTarkov_Data/Managed/Assembly-CSharp.dll"), parameters);
 using var freecam = AssemblyDefinition.ReadAssembly(Path.Combine(root, "BepInEx/plugins/Terkoiz.Freecam/Terkoiz.Freecam.dll"), parameters);
 var entry = plugin.MainModule.GetType("RaidSpectator.Plugin");
+var physicsApi = game.MainModule.GetType("PhysicsExtensions");
+Check(new[] { "Update", "FixedUpdate" }.All(n => physicsApi.Methods.Any(m => m.Name == n && m.IsStatic && m.Parameters.Count == 0)), "Always-running application physics targets exist");
+var armsLateUpdate = game.MainModule.GetType("EFT.Player").Methods.Single(m => m.Name == "ArmsLateUpdate");
+Check(armsLateUpdate.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "get_IsYourPlayer") &&
+    armsLateUpdate.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "SyncTransforms"), "Installed EFT sync source is tied to local-player hands");
+var simulation = physicsApi.NestedTypes.Single(t => t.Name == "Simulation");
+var updateController = physicsApi.NestedTypes.Single(t => t.Name == "UpdateController");
+Check(updateController.Methods.SelectMany(m => m.HasBody ? m.Body.Instructions : Enumerable.Empty<Instruction>()).Any(i => i.Operand is MethodReference m && m.Name == "set_SyncTransformsControlledByUnity"), "Native rigidbody controller can disable automatic transform sync");
+Check(simulation.Methods.Single(m => m.Name == "get_CanRunSimulate").Body.Instructions.Any(i => i.Operand is FieldReference f && f.Name == "_updateEnabled"), "Physics simulation may stop despite the raid still running");
+Check(entry.Methods.Single(m => m.Name == "PlayerTickPrefix").Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "MaintainPhysics"), "Physics ready before first AI body update regardless of application order");
+Check(entry.Methods.Single(m => m.Name == "TryWatch").Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "MaintainPhysics"), "Physics starts at entry, not after Killcam");
+Check(!plugin.MainModule.GetMemberReferences().OfType<MethodReference>().Any(m => m.DeclaringType.FullName == "UnityEngine.Physics" && new[] { "Simulate", "set_autoSyncTransforms", "set_simulationMode" }.Contains(m.Name)), "No forced simulation or global physics setting mutation");
 var dep = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInDependency" && (string)a.ConstructorArguments[0].Value == "com.terkoiz.freecam");
 Check((string)dep.ConstructorArguments[0].Value == "com.terkoiz.freecam" && (string)dep.ConstructorArguments[1].Value == "1.4.8", "Required Freecam version");
 var incompat = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInIncompatibility");

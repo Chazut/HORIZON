@@ -4,7 +4,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <AssemblyName>RaidSpectator</AssemblyName>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Authors>Chazut</Authors>
     <Description>Continue watching a solo SPT raid after death using Terkoiz Freecam.</Description>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>

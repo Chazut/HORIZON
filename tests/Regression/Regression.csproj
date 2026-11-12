@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="../../src/PmcCycle.cs" Link="Production/PmcCycle.cs" />
     <Compile Include="../../src/SpectatorSession.cs" Link="Production/SpectatorSession.cs" />
+    <Compile Include="../../src/SpectatorPhysics.cs" Link="Production/SpectatorPhysics.cs" />
     <Reference Include="Mono.Cecil" HintPath="$(SptRoot)/BepInEx/core/Mono.Cecil.dll" />
   </ItemGroup>
 </Project>

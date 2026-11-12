@@ -2,7 +2,9 @@
 
 Keep watching your solo SPT raid after death or extraction. The mod automatically switches to **Terkoiz Freecam** while the bots and raid timer continue running.
 
-**Early test build: 0.2.0.** Built against SPT 4.1.6 and Freecam 1.4.8. Automated checks pass; in-game validation is still required.
+**Early test build: 0.2.1.** Built against SPT 4.1.6 and Freecam 1.4.8. Automated checks pass; in-game validation is still required.
+
+0.2.1 maintains physics transform synchronization after death/extraction, including during Killcam and while the spectator menu is open. EFT normally performs that work from the local player's hands update, which is no longer reliable once the player is gone. This addresses a cause of bots falling through the map or failing to move while spectating. It does not alter AI decisions, teleport bots, or force all scenery to render. Verification in a real raid is still needed for the reported Shoreline falls and stationary bot.
 
 ## Install and use
 
@@ -45,7 +47,9 @@ Before release, verify in real raids:
 9. Scroll both directions with several PMCs alive, then after the selected PMC dies/extracts. No Scavs/bosses/humans should be selected and the body must never move. Check indoors camera placement.
 10. With BotDebug installed, verify overlay activation and shutdown; without it, spectating must still work. Open Escape/F12: scrolling menus must not switch PMCs.
 
-Look for `[Raid Spectator]` in `BepInEx/LogOutput.log`. Logging is limited to startup, entry, exit and errors; there is no per-frame file output.
+11. After death and extraction, keep observing for at least five minutes with the camera away from several moving bots. Check both PMC and Scav movement, stairs/doors and ground support. Open the spectator menu and wait through Killcam too. `Spectator physics` should show increasing synchronization counts with `autoSync=False`; `staleBounds` should remain zero. A warning can also describe a legitimate prolonged hold while the mover still requests movement, so review its context. Repeat without ORBIT/COMET when comparing vanilla behavior. Fika remains incompatible with this solo plugin.
+
+Look for `[Raid Spectator]` in `BepInEx/LogOutput.log`. In addition to entry/exit messages, a physics summary every 30 seconds records synchronization cost and stale collider bounds. Checks every 5 seconds report severe falls, movement without displacement and stale bounds (at most once per bot per 30 seconds). These observations do not change bot behavior. There is no per-frame file output.
 
 ## Implementation
 

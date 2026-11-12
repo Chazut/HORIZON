@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace RaidSpectator;
 
-[BepInPlugin(Id, "Raid Spectator", "0.2.0")]
+[BepInPlugin(Id, "Raid Spectator", "0.2.1")]
 [BepInDependency("com.terkoiz.freecam", "1.4.8")]
 [BepInDependency(KillcamBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(BotDebugBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
@@ -30,6 +30,11 @@ public sealed class Plugin : BaseUnityPlugin
     private readonly BotDebugBridge _botDebug = new();
     private readonly ExtractedPlayer _extractedPlayer = new();
     private readonly PmcNavigator _navigator = new();
+    private readonly SpectatorPhysics _physics = new();
+    private readonly PhysicsDiagnostics _physicsDiagnostics = new();
+    private bool _physicsFailureLogged;
+    private bool _physicsDiagnosticsFailed;
+    private Action<string> _physicsInfo = null!, _physicsWarning = null!;
     private readonly Harmony _harmony = new(Id);
     private ConfigEntry<bool> _enabled = null!;
     private ConfigEntry<bool> _afterExtraction = null!, _cyclePmcs = null!, _autoBotDebug = null!;
@@ -49,6 +54,8 @@ public sealed class Plugin : BaseUnityPlugin
 
     private void Awake()
     {
+        _physicsInfo = message => Logger.LogInfo(message);
+        _physicsWarning = message => Logger.LogWarning(message);
         _enabled = Config.Bind("General", "Enabled", true, "Keep a solo raid running after death/extraction and enter Freecam. Disabling while spectating saves your original raid result.");
         _afterExtraction = Config.Bind("General", "Spectate after extraction", true, "Continue watching after a completed extraction. Keeps the original extraction result, exit and play time. Transit is unchanged. Use Leave raid to save.");
         _cyclePmcs = Config.Bind("General", "Cycle PMCs with mouse wheel", true, "While spectating, scroll up/down to move only the camera to the next/previous living AI PMC. Freecam wheel zoom is suspended. Scavs, bosses and human players are excluded.");
@@ -90,6 +97,11 @@ public sealed class Plugin : BaseUnityPlugin
             Patch(typeof(FreecamController), "Update", nameof(FreecamInputPrefix));
             Patch(typeof(FreecamController), "get_IsFreecamActive", nameof(FreecamActivePrefix));
             Patch(typeof(Player), "ManualUpdate", nameof(PlayerTickPrefix));
+            // World physics must keep receiving transform updates with no active
+            // local player, including while waiting for Killcam and in the menu.
+            foreach (var name in new[] { "Update", "FixedUpdate" })
+                _harmony.Patch(AccessTools.DeclaredMethod(typeof(PhysicsExtensions), name) ?? throw new MissingMethodException("PhysicsExtensions." + name),
+                    postfix: new HarmonyMethod(typeof(Plugin), nameof(PhysicsTickPostfix)));
             Patch(typeof(ActiveHealthController), "ManualUpdate", nameof(HealthTickPrefix));
             Patch(typeof(ActiveHealthController), "ApplyDamage", nameof(DamagePrefix));
             _harmony.Patch(AccessTools.DeclaredMethod(typeof(Terkoiz.Freecam.Freecam), "Update") ?? throw new MissingMethodException("Freecam.Update"),
@@ -145,6 +157,7 @@ public sealed class Plugin : BaseUnityPlugin
             _preparedEnd = false;
             _cameraActive = false;
             if (extracting) _extractedPlayer.Remove(_world, player);
+            MaintainPhysics();
             StartCoroutine(AfterDeathDispatch());
             Logger.LogInfo($"Spectator entry: profile={player.ProfileId}, result={result}, exit={exitName ?? "none"}, played={_session.PlayedSeconds:F1}s. Native save deferred until Leave raid/timer.");
             return true;
@@ -217,6 +230,16 @@ public sealed class Plugin : BaseUnityPlugin
             return;
         }
         if (!_session.Watching) return;
+        MaintainPhysics();
+        if (!_physicsDiagnosticsFailed)
+        {
+            try { _physicsDiagnostics.Observe(world, _physics, _physicsInfo, _physicsWarning); }
+            catch (Exception e)
+            {
+                _physicsDiagnosticsFailed = true;
+                Logger.LogWarning($"Spectator physics diagnostics unavailable; synchronization remains enabled: {e}");
+            }
+        }
         if (!_enabled.Value || (_cameraActive && !_camera.Ready))
         {
             LeaveRaid(_enabled.Value ? "camera-lost" : "disabled");
@@ -260,6 +283,7 @@ public sealed class Plugin : BaseUnityPlugin
         // once ending begins, so spectating never changes the live raid timer or bot timelines.
         _preparedEnd = true;
         StopBotDebug();
+        Logger.LogInfo($"Spectator physics stopped: syncs={_physics.Count}, meanMs={(_physics.Count > 0 ? _physics.TotalMs / _physics.Count : 0):F3}, maxMs={_physics.MaxMs:F3}.");
         try { _sessionStart.SetValue(_game, _session.StartForSave(DateTimeExtensions.Now)); }
         catch (Exception e)
         {
@@ -276,6 +300,10 @@ public sealed class Plugin : BaseUnityPlugin
         try { _extractedPlayer.Release(rollback); }
         catch (Exception e) { Logger.LogWarning($"Extracted player cleanup: {e.Message}"); }
         _navigator.Reset();
+        _physics.Reset();
+        _physicsDiagnostics.Reset();
+        _physicsFailureLogged = false;
+        _physicsDiagnosticsFailed = false;
         try { _camera.Release(); }
         catch (Exception e) { Logger.LogWarning($"Spectator cleanup: {e.Message}"); }
         _session.Reset();
@@ -335,8 +363,31 @@ public sealed class Plugin : BaseUnityPlugin
         catch (Exception e) { Logger.LogWarning($"Could not disable BotDebug: {e.Message}"); }
     }
 
-    private static bool PlayerTickPrefix(Player __instance) =>
-        _instance?.Extracted != true || !ReferenceEquals(_instance._player, __instance);
+    private static bool PlayerTickPrefix(Player __instance)
+    {
+        // Guarantee the first AI movement query sees synchronized colliders even
+        // if its Update runs before AbstractApplication.Update. One sync per tick,
+        // not per bot. Native sleeping/disabled bots remain untouched.
+        if (__instance.IsAI) _instance?.MaintainPhysics();
+        return _instance?.Extracted != true || !ReferenceEquals(_instance._player, __instance);
+    }
+
+    private static void PhysicsTickPostfix() => _instance?.MaintainPhysics();
+
+    private void MaintainPhysics()
+    {
+        if (!_session.Watching || _world == null || !ReferenceEquals(_world, Singleton<GameWorld>.Instance) ||
+            _game == null || _game.Status != GameStatus.Started) return;
+        try
+        {
+            _physics.Sync(true, Physics.autoSyncTransforms, Time.frameCount, Time.inFixedTimeStep, Time.fixedTime, Physics.SyncTransforms);
+        }
+        catch (Exception e)
+        {
+            if (!_physicsFailureLogged) Logger.LogError($"Spectator physics synchronization failed: {e}");
+            _physicsFailureLogged = true;
+        }
+    }
 
     private static bool HealthTickPrefix(ActiveHealthController __instance) =>
         _instance?.Extracted != true || !ReferenceEquals(_instance._player?.ActiveHealthController, __instance);
