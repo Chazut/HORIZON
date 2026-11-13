@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using BepInEx.Configuration;
 using UnityEngine;
 
@@ -16,6 +18,18 @@ internal sealed class SpectatorSettings
     public ConfigEntry<bool> AutoBotDebug { get; }
     public ConfigEntry<KeyboardShortcut> MenuKey { get; }
 
+    public static bool ImportLegacyConfig(ConfigFile config)
+    {
+        string destination = config.ConfigFilePath;
+        if (!string.Equals(Path.GetFileName(destination), "com.chazut.horizon.cfg", StringComparison.OrdinalIgnoreCase) ||
+            File.Exists(destination)) return false;
+        string legacy = Path.Combine(Path.GetDirectoryName(destination)!, "com.chazut.raidspectator.cfg");
+        if (!File.Exists(legacy)) return false;
+        File.Copy(legacy, destination, overwrite: false);
+        config.Reload();
+        return true;
+    }
+
     public SpectatorSettings(ConfigFile config)
     {
         bool save = config.SaveOnConfigSet;
@@ -25,8 +39,8 @@ internal sealed class SpectatorSettings
             Enabled = config.Bind("General", "Enabled", true, "Keep a solo raid running after death/extraction and enter Freecam. Disabling while spectating saves your original raid result.");
             AfterDeath = config.Bind("General", "Spectate after death", true, "Continue watching after death. If Killcam is installed, its replay finishes first. Changes apply to the next death, not the current spectator session.");
             AfterExtraction = config.Bind("General", "Spectate after extraction", true, "Continue watching after a completed extraction, including run-throughs. Keeps the original result, exit and play time. Transit is unchanged. Changes apply to the next extraction.");
-            // Keep the original plugin ID/config file and migrate the renamed wheel
-            // setting. An existing new setting always wins over the legacy value.
+            // Migrate the renamed wheel setting. An existing new setting always
+            // wins over the legacy value.
             var legacy = config.Bind("General", "Cycle PMCs with mouse wheel", true);
             CycleBots = config.Bind("General", "Cycle bots with mouse wheel", legacy.Value, "Scroll up/down to move only the camera to the next/previous living AI bot in the selected filter. Disable to restore Freecam wheel zoom. Menu buttons remain available.");
             config.Remove(legacy.Definition);

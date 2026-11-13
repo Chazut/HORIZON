@@ -21,8 +21,8 @@ namespace RaidSpectator;
 [BepInIncompatibility("com.fika.core")]
 public sealed class Plugin : BaseUnityPlugin
 {
-    // Stable loader identity and file paths preserve existing installations.
-    public const string Id = "com.chazut.raidspectator";
+    // Keep the DLL path stable so updates replace the old plugin instead of adding a second one.
+    public const string Id = "com.chazut.horizon";
     private static Plugin? _instance;
     private readonly SpectatorSession _session = new();
     private readonly FreecamBridge _camera = new();
@@ -59,6 +59,15 @@ public sealed class Plugin : BaseUnityPlugin
         _physicsInfo = message => Logger.LogInfo(message);
         _physicsWarning = message => Logger.LogWarning(message);
         _botDebugView = new BotDebugView(_physicsInfo, _physicsWarning);
+        try
+        {
+            if (SpectatorSettings.ImportLegacyConfig(Config))
+                Logger.LogInfo("Imported Raid Spectator settings into com.chazut.horizon.cfg. Original file preserved.");
+        }
+        catch (Exception e)
+        {
+            Logger.LogWarning($"Could not import Raid Spectator settings; original file preserved: {e.Message}");
+        }
         _settings = new SpectatorSettings(Config);
         if (Chainloader.PluginInfos.ContainsKey("com.fika.core"))
         {

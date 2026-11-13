@@ -13,7 +13,7 @@ namespace RaidSpectator;
 // remain unchanged for the game and every other mod.
 internal static class BotDebugHooks
 {
-    private static readonly Harmony Patches = new("com.chazut.raidspectator.botdebug");
+    private static readonly Harmony Patches = new("com.chazut.horizon.botdebug");
     private static BotDebugView? _view;
     private const BindingFlags Methods = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance;
     private static readonly MethodInfo NativeData = typeof(BotSpawner).GetMethod("GetBotDebugData", Methods)!;

@@ -24,6 +24,8 @@ Transits work normally. The raid timer still applies.
 2. Extract the HORIZON archive into your SPT folder.
 3. Open **F12 > HORIZON** to change your settings.
 
+Plugin GUID: `com.chazut.horizon`. Settings are saved in `BepInEx/config/com.chazut.horizon.cfg`; older Raid Spectator settings are imported automatically on first launch.
+
 ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectators** to observe awake bots.
 
 ## Controls

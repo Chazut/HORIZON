@@ -7,6 +7,7 @@ First public version.
 - Configure spectating, camera controls and the optional BotDebug overlay in F12.
 - Wait for Killcam before entering Freecam, when installed.
 - Preserve the original raid result and play time. Transits continue normally.
+- Use the plugin GUID `com.chazut.horizon`, with automatic import of older Raid Spectator settings when no HORIZON config exists.
 
 Requires Freecam 1.4.8 or later. Fika is incompatible. Version bump from 0.3.0; no gameplay changes.
 

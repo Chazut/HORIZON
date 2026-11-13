@@ -39,6 +39,23 @@ try
     var noSave = new ConfigFile(path, false) { SaveOnConfigSet = false };
     _ = new SpectatorSettings(noSave);
     Check(!noSave.SaveOnConfigSet && File.ReadAllText(path) == before, "Configuration initialization respects disabled automatic saving");
+
+    string horizonPath = Path.Combine(dir, "com.chazut.horizon.cfg");
+    var horizonConfig = new ConfigFile(horizonPath, false);
+    Check(!SpectatorSettings.ImportLegacyConfig(horizonConfig), "Fresh HORIZON install requires no legacy config");
+    string oldPath = Path.Combine(dir, "com.chazut.raidspectator.cfg");
+    const string oldSettings = "[General]\nEnabled = false\nSpectate after extraction = false\nCycle PMCs with mouse wheel = false\nCamera targets = AllBots\nAutomatic BotDebug overlay = true\nSpectator menu = F7\n";
+    File.WriteAllText(oldPath, oldSettings);
+    Check(SpectatorSettings.ImportLegacyConfig(horizonConfig), "First HORIZON launch imports the old GUID config");
+    var imported = new SpectatorSettings(horizonConfig);
+    Check(!imported.Enabled.Value && !imported.AfterExtraction.Value && !imported.CycleBots.Value && imported.Targets.Value == BotFilter.AllBots && imported.AutoBotDebug.Value && imported.MenuKey.Value.MainKey == KeyCode.F7,
+        "GUID migration preserves user preferences and the old wheel key");
+    Check(File.ReadAllText(oldPath) == oldSettings, "Original Raid Spectator config is preserved");
+    imported.Targets.Value = BotFilter.PmcOnly;
+    string savedHorizon = File.ReadAllText(horizonPath);
+    Check(!SpectatorSettings.ImportLegacyConfig(horizonConfig) && File.ReadAllText(horizonPath) == savedHorizon,
+        "Existing HORIZON config takes priority and migration is idempotent");
+    Check(new SpectatorSettings(new ConfigFile(horizonPath, false)).Targets.Value == BotFilter.PmcOnly, "HORIZON preferences survive reload after migration");
     Console.WriteLine($"PASS: {checks} configuration checks using the installed BepInEx serializer.");
 }
 finally { Directory.Delete(dir, true); }
