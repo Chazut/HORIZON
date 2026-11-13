@@ -2,7 +2,7 @@ using System;
 using System.Reflection;
 using BepInEx.Configuration;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 internal sealed class BotDebugBridge
 {

@@ -1,6 +1,6 @@
 using EFT;
 using EFT.CameraControl;
-using RaidSpectator;
+using Horizon;
 using Terkoiz.Freecam;
 using UnityEngine;
 

@@ -12,16 +12,16 @@ using HarmonyLib;
 using Terkoiz.Freecam;
 using UnityEngine;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 [BepInPlugin(Id, "HORIZON", "1.0.0")]
 [BepInDependency("com.terkoiz.freecam", "1.4.8")]
 [BepInDependency(KillcamBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(BotDebugBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInIncompatibility("com.fika.core")]
+[BepInIncompatibility("com.chazut.raidspectator")]
 public sealed class Plugin : BaseUnityPlugin
 {
-    // Keep the DLL path stable so updates replace the old plugin instead of adding a second one.
     public const string Id = "com.chazut.horizon";
     private static Plugin? _instance;
     private readonly SpectatorSession _session = new();

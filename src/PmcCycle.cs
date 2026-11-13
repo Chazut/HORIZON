@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 internal sealed class PmcCycle
 {

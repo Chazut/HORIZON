@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 // Observe the optional plugin's public state. Do not stop its replay, change its
 // settings or touch its actors. PendingReplayKiller covers the pre-play coroutine delay.

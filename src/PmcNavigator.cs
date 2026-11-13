@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using EFT;
 using UnityEngine;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 internal sealed class PmcNavigator
 {

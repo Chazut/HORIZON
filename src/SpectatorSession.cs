@@ -1,6 +1,6 @@
 using System;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 internal enum SessionPhase { Idle, Watching, Ending }
 internal enum StopDecision { Original, Defer, Captured }

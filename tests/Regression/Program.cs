@@ -1,6 +1,6 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using RaidSpectator;
+using Horizon;
 
 int assertions = 0;
 void Check(bool value, string name)
@@ -127,13 +127,14 @@ using var resolver = new DefaultAssemblyResolver();
 foreach (string path in new[] { "BepInEx/core", "EscapeFromTarkov_Data/Managed", "BepInEx/plugins/Terkoiz.Freecam" })
     resolver.AddSearchDirectory(Path.Combine(root, path));
 var parameters = new ReaderParameters { AssemblyResolver = resolver };
-using var plugin = AssemblyDefinition.ReadAssembly(Path.Combine(project, "bin/Release/netstandard2.1/RaidSpectator.dll"), parameters);
+using var plugin = AssemblyDefinition.ReadAssembly(Path.Combine(project, "bin/Release/netstandard2.1/HORIZON.dll"), parameters);
+Check(plugin.Name.Name == "HORIZON", "Plugin assembly uses the HORIZON name");
 using var game = AssemblyDefinition.ReadAssembly(Path.Combine(root, "EscapeFromTarkov_Data/Managed/Assembly-CSharp.dll"), parameters);
 using var freecam = AssemblyDefinition.ReadAssembly(Path.Combine(root, "BepInEx/plugins/Terkoiz.Freecam/Terkoiz.Freecam.dll"), parameters);
-var entry = plugin.MainModule.GetType("RaidSpectator.Plugin");
+var entry = plugin.MainModule.GetType("Horizon.Plugin");
 var identity = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInPlugin");
 Check((string)identity.ConstructorArguments[0].Value == "com.chazut.horizon" && (string)identity.ConstructorArguments[1].Value == "HORIZON", "HORIZON exposes its public plugin GUID");
-Check(plugin.MainModule.GetType("RaidSpectator.BotDebugHooks").Methods.Single(m => m.Name == ".cctor").Body.Instructions.Any(i =>
+Check(plugin.MainModule.GetType("Horizon.BotDebugHooks").Methods.Single(m => m.Name == ".cctor").Body.Instructions.Any(i =>
     i.Operand is string value && value == "com.chazut.horizon.botdebug"), "BotDebug patches use the HORIZON identity");
 var physicsApi = game.MainModule.GetType("PhysicsExtensions");
 Check(new[] { "Update", "FixedUpdate" }.All(n => physicsApi.Methods.Any(m => m.Name == n && m.IsStatic && m.Parameters.Count == 0)), "Always-running application physics targets exist");
@@ -149,8 +150,10 @@ Check(entry.Methods.Single(m => m.Name == "TryWatch").Body.Instructions.Any(i =>
 Check(!plugin.MainModule.GetMemberReferences().OfType<MethodReference>().Any(m => m.DeclaringType.FullName == "UnityEngine.Physics" && new[] { "Simulate", "set_autoSyncTransforms", "set_simulationMode" }.Contains(m.Name)), "No forced simulation or global physics setting mutation");
 var dep = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInDependency" && (string)a.ConstructorArguments[0].Value == "com.terkoiz.freecam");
 Check((string)dep.ConstructorArguments[0].Value == "com.terkoiz.freecam" && (string)dep.ConstructorArguments[1].Value == "1.4.8", "Required Freecam version");
-var incompat = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInIncompatibility");
-Check((string)incompat.ConstructorArguments[0].Value == "com.fika.core", "Loader refuses Fika");
+var incompatibilities = entry.CustomAttributes.Where(a => a.AttributeType.Name == "BepInIncompatibility")
+    .Select(a => (string)a.ConstructorArguments[0].Value).ToArray();
+Check(incompatibilities.Contains("com.fika.core"), "Loader refuses Fika");
+Check(incompatibilities.Contains("com.chazut.raidspectator"), "Loader refuses concurrent legacy Raid Spectator installation");
 var killcamDep = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInDependency" && (string)a.ConstructorArguments[0].Value == "com.maschine.Killcam");
 Check(Convert.ToInt32(killcamDep.ConstructorArguments[1].Value) == 2, "Killcam remains an optional dependency");
 string killcamPath = Path.Combine(root, "BepInEx/plugins/maschine-Killcam.dll");

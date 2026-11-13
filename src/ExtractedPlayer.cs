@@ -4,7 +4,7 @@ using EFT;
 using EFT.CameraControl;
 using UnityEngine;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 // Keep the profile/camera alive for the native result screen, remove the body from the raid.
 // Health and manual player ticks are suspended separately by the plugin while this is active.

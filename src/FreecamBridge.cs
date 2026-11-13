@@ -4,7 +4,7 @@ using Terkoiz.Freecam;
 using UnityEngine;
 using CameraScript = Terkoiz.Freecam.Freecam;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 // Use Freecam's camera and movement implementation; do not clone it or teleport the dead body.
 internal sealed class FreecamBridge

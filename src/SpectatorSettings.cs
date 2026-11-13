@@ -3,7 +3,7 @@ using System.IO;
 using BepInEx.Configuration;
 using UnityEngine;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 internal sealed class SpectatorSettings
 {

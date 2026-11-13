@@ -3,7 +3,7 @@ using Comfort.Common;
 using EFT;
 using UnityEngine;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 // Display-only access: the extracted player must stay unregistered and untargetable.
 internal sealed class BotDebugView

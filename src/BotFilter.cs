@@ -1,4 +1,4 @@
-namespace RaidSpectator;
+namespace Horizon;
 
 public enum BotFilter
 {

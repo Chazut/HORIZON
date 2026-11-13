@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 // EFT normally syncs PhysX transforms from the LOCAL player's ArmsLateUpdate.
 // That source disappears when the extracted body is deactivated (or hands are gone

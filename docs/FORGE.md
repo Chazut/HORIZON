@@ -30,7 +30,9 @@ Your original raid result, loot and play time are preserved. Watching longer doe
 
 ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectators** to observe awake bots.
 
-Updating from Raid Spectator? Overwrite the existing files. Your settings are automatically copied to `BepInEx/config/com.chazut.horizon.cfg` on first launch. An existing HORIZON config is kept as-is.
+Updating from Raid Spectator or an earlier HORIZON build using the old folder? Remove `BepInEx/plugins/RaidSpectator` before installing. The new plugin is `BepInEx/plugins/HORIZON/HORIZON.dll`.
+
+Keep your old config: its settings are automatically copied to `BepInEx/config/com.chazut.horizon.cfg` on first launch. An existing HORIZON config is kept as-is.
 
 ### Controls & settings
 

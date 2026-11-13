@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using EFT;
 using UnityEngine;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 // Sparse observation only. Never teleport a bot, change its orders, enable a
 // disabled controller, or turn on all map colliders/renderers to hide a failure.

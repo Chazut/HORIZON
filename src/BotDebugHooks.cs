@@ -7,7 +7,7 @@ using EFT;
 using HarmonyLib;
 using UnityEngine;
 
-namespace RaidSpectator;
+namespace Horizon;
 
 // Only BotDebug's display code is patched. Native bot lookup and Camera.main
 // remain unchanged for the game and every other mod.

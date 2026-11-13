@@ -1,5 +1,5 @@
 using BepInEx.Configuration;
-using RaidSpectator;
+using Horizon;
 using UnityEngine;
 
 int checks = 0;
