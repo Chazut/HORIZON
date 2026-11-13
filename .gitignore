@@ -4,3 +4,23 @@ artifacts/
 *.user
 *.suo
 .vs/
+
+# Local reference code, render tools and deployment backups
+/work/
+/references/
+/backups/
+*.dll
+*.exe
+*.pdb
+*.zip
+*.log
+*.tmp
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.codex/
+AGENTS.md
+Thumbs.db
+.DS_Store

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 24 24" role="img" aria-labelledby="title desc">
+  <title id="title">HORIZON</title>
+  <desc id="desc">An orange sun above a turquoise planetary horizon, on a transparent background.</desc>
+  <defs>
+    <clipPath id="sky">
+      <path d="M2 15 Q12 9.8 22 15 V0 H2 Z" />
+    </clipPath>
+  </defs>
+  <g transform="translate(12 12) scale(0.82) translate(-12 -12)">
+    <circle cx="12" cy="10.75" r="4.2" fill="#FFB454" clip-path="url(#sky)" />
+    <path d="M3.2 14.41344 Q12.6 10.112 22 15" fill="none" stroke="#4FD1C5" stroke-width="1.3" stroke-linecap="round" />
+    <circle cx="3.2" cy="14.41344" r="1.6" fill="#4FD1C5" />
+  </g>
+</svg>
