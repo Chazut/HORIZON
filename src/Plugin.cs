@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace RaidSpectator;
 
-[BepInPlugin(Id, "HORIZON", "0.3.0")]
+[BepInPlugin(Id, "HORIZON", "1.0.0")]
 [BepInDependency("com.terkoiz.freecam", "1.4.8")]
 [BepInDependency(KillcamBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(BotDebugBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]

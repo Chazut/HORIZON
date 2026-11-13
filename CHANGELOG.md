@@ -1,4 +1,16 @@
-# HORIZON 0.3.0 - test build
+# HORIZON 1.0.0
+
+First public version.
+
+- Keep watching solo raids after death or extraction with Terkoiz Freecam.
+- Switch between PMCs only or all living bots using the mouse wheel or spectator menu.
+- Configure spectating, camera controls and the optional BotDebug overlay in F12.
+- Wait for Killcam before entering Freecam, when installed.
+- Preserve the original raid result and play time. Transits continue normally.
+
+Requires Freecam 1.4.8 or later. Fika is incompatible. Version bump from 0.3.0; no gameplay changes.
+
+## HORIZON 0.3.0 - test build
 
 Raid Spectator is now HORIZON, with configurable spectator controls.
 

@@ -15,7 +15,7 @@ try {
     $pluginDir = Join-Path $stage 'BepInEx/plugins/RaidSpectator'
     New-Item -ItemType Directory -Path $pluginDir -Force | Out-Null
     Copy-Item -LiteralPath 'bin/Release/netstandard2.1/RaidSpectator.dll' -Destination $pluginDir
-    $zip = Join-Path $PSScriptRoot "artifacts/HORIZON-$version-test.zip"
+    $zip = Join-Path $PSScriptRoot "artifacts/HORIZON-$version.zip"
     Compress-Archive -LiteralPath (Join-Path $stage 'BepInEx') -DestinationPath $zip -Force
     Get-FileHash -LiteralPath $zip -Algorithm SHA256
 } finally { Pop-Location }

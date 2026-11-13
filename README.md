@@ -6,7 +6,7 @@
 
 Keep watching your solo SPT raid after death or extraction. Fly freely around the map and see what the bots do next.
 
-**SPT 4.1.6 | 0.3.0 test build | Solo only: incompatible with Fika.**
+**SPT 4.1.6 | 1.0.0 | Solo only: incompatible with Fika.**
 
 ## What it does
 
