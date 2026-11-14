@@ -1,9 +1,11 @@
-# Unreleased
+# HORIZON 1.1.0
 
-- Follow the selected bot with F; switch between its viewing direction and mouse orbit with R. Configure both keys, sensitivity and distance in F12.
-- Drag the spectator help panel and menu by their headers; remember their positions and keep them on screen.
-- Clear lingering player death, injury, flash, visor and personal vision effects while spectating, without disabling world lighting or graphics mods.
-- Automatically move to another eligible bot if the followed bot dies or extracts, and return to free movement if none remain.
+- **Follow a bot:** press F to attach/detach the camera, and R to switch between following its view and rotating around it with your mouse.
+- **Move the interface:** drag the menu by its title, or hold Left Alt to drag the help panel. Positions are saved.
+- **Cleaner spectator view:** removes lingering death, injury, flash and visor effects.
+- **Keep watching:** automatically switches to another bot when your target dies or extracts, or returns to Freecam if none remain.
+
+Camera keys, sensitivity and distance can be adjusted in F12.
 
 # HORIZON 1.0.0
 
