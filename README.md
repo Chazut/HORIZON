@@ -1,4 +1,9 @@
 <p align="center"><img src="branding/horizon-logo.svg" width="160" alt="HORIZON logo"></p>
+<p align="center">
+  <img src="https://img.shields.io/github/stars/Chazut/HORIZON?style=flat-square&label=STARS&color=007ec6" />
+  <img src="https://img.shields.io/github/issues/Chazut/HORIZON?style=flat-square&label=ISSUES&color=44cc11" />
+  <img src="https://img.shields.io/github/downloads/Chazut/HORIZON/total?style=flat-square&label=DOWNLOADS&color=44cc11" />
+</p>
 
 # HORIZON
 
