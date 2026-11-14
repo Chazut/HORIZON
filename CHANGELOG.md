@@ -1,3 +1,10 @@
+# Unreleased
+
+- Follow the selected bot with F; switch between its viewing direction and mouse orbit with R. Configure both keys, sensitivity and distance in F12.
+- Drag the spectator help panel and menu by their headers; remember their positions and keep them on screen.
+- Clear lingering player death, injury, flash, visor and personal vision effects while spectating, without disabling world lighting or graphics mods.
+- Automatically move to another eligible bot if the followed bot dies or extracts, and return to free movement if none remain.
+
 # HORIZON 1.0.0
 
 First public version.

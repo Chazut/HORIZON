@@ -51,6 +51,10 @@ public sealed class Plugin : BaseUnityPlugin
     private GUIStyle? _titleStyle, _textStyle, _buttonStyle, _toggleStyle;
     private Texture2D? _panelTexture;
     private Vector2 _menuScroll;
+    private int _dragControl;
+    private Vector2 _dragOrigin, _dragPanel;
+    private Vector2? _dragPosition;
+    private bool CameraMenu => _menuOpen || ConfigurationIsOpen() || Input.GetKey(KeyCode.LeftAlt);
     private string _botDebugStatus = "BotDebug is not installed.";
     private static readonly string[] TargetLabels = { "PMCs only", "All bots" };
 
@@ -276,8 +280,11 @@ public sealed class Plugin : BaseUnityPlugin
         if (!_cameraActive) return;
         if (!ConfigurationIsOpen() && (Input.GetKeyDown(KeyCode.Escape) || _settings.MenuKey.Value.IsDown())) _menuOpen = !_menuOpen;
         // Apply immediately, before the dependency's Update can process a menu click as camera movement.
-        _camera.SetMenu(_menuOpen || ConfigurationIsOpen());
+        _camera.SetMenu(CameraMenu, _navigator.Following);
         _navigator.SetFilter(_settings.Targets.Value);
+        if (!_menuOpen && !ConfigurationIsOpen() && _settings.FollowKey.Value.IsDown()) ToggleFollow();
+        if (!CameraMenu && _navigator.Following && _settings.OrientationKey.Value.IsDown()) _navigator.ToggleOrientation();
+        if (!CameraMenu) _navigator.Rotate(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"), _settings.OrbitSensitivity.Value);
         if (!_menuOpen && !ConfigurationIsOpen() && _settings.CycleBots.Value)
         {
             float wheel = Input.GetAxis("Mouse ScrollWheel");
@@ -294,7 +301,17 @@ public sealed class Plugin : BaseUnityPlugin
 
     private void LateUpdate()
     {
-        if (CameraWatching) _camera.SetMenu(_menuOpen || ConfigurationIsOpen());
+        if (!CameraWatching) return;
+        _camera.MaintainEffects();
+        if (_world != null) _navigator.Follow(_world, _camera, _settings.VisitDistance.Value);
+        _camera.SetMenu(CameraMenu, _navigator.Following);
+    }
+
+    private void ToggleFollow()
+    {
+        if (_world == null) return;
+        _navigator.ToggleFollow(_world, _camera, _settings.VisitDistance.Value);
+        Logger.LogInfo($"Camera follow: {_navigator.Following}, target={_navigator.Caption}");
     }
 
     private bool ConfigurationIsOpen()
@@ -331,6 +348,8 @@ public sealed class Plugin : BaseUnityPlugin
 
     private void Reset(bool rollback = false)
     {
+        if (_dragControl != 0 && GUIUtility.hotControl == _dragControl) GUIUtility.hotControl = 0;
+        _dragControl = 0; _dragPosition = null;
         StopBotDebug();
         try { _extractedPlayer.Release(rollback); }
         catch (Exception e) { Logger.LogWarning($"Extracted player cleanup: {e.Message}"); }
@@ -491,7 +510,38 @@ public sealed class Plugin : BaseUnityPlugin
             _panelTexture.Apply();
         }
         float width = Mathf.Min(_menuOpen ? 400 : 330, Screen.width - 32);
-        var rect = new Rect(Screen.width - width - 16, 20, width, Mathf.Min(_menuOpen ? 500 : 92, Screen.height - 40));
+        float height = Mathf.Min(_menuOpen ? 560 : 150, Screen.height - 40);
+        var position = _menuOpen ? _settings.MenuPosition : _settings.HelpPosition;
+        var available = new Vector2(Mathf.Max(0, Screen.width - width - 32), Mathf.Max(0, Screen.height - height - 40));
+        var normalized = _dragPosition ?? position.Value;
+        var rect = new Rect(16 + Mathf.Clamp01(normalized.x) * available.x, 20 + Mathf.Clamp01(normalized.y) * available.y, width, height);
+        int control = GUIUtility.GetControlID(_menuOpen ? 82141 : 82142, FocusType.Passive);
+        if (_dragControl != 0 && (_dragControl != control || !CameraMenu))
+        {
+            if (GUIUtility.hotControl == _dragControl) GUIUtility.hotControl = 0;
+            _dragControl = 0;
+            _dragPosition = null;
+        }
+        var ev = Event.current;
+        if (ev.type == EventType.MouseDown && ev.button == 0 && new Rect(rect.x, rect.y, rect.width, 38).Contains(ev.mousePosition) && CameraMenu)
+        {
+            _dragControl = control; GUIUtility.hotControl = control;
+            _dragOrigin = ev.mousePosition; _dragPanel = new Vector2(rect.x, rect.y); ev.Use();
+        }
+        if (_dragControl == control && GUIUtility.hotControl == control)
+        {
+            if (ev.type == EventType.MouseDrag)
+            {
+                var p = _dragPanel + ev.mousePosition - _dragOrigin;
+                _dragPosition = new Vector2(available.x > 0 ? Mathf.Clamp01((p.x - 16) / available.x) : 0, available.y > 0 ? Mathf.Clamp01((p.y - 20) / available.y) : 0);
+                ev.Use();
+            }
+            if (ev.type == EventType.MouseUp)
+            {
+                if (_dragPosition.HasValue) position.Value = _dragPosition.Value;
+                _dragPosition = null; _dragControl = 0; GUIUtility.hotControl = 0; ev.Use();
+            }
+        }
         int oldDepth = GUI.depth;
         GUI.depth = -100;
         GUI.DrawTexture(rect, _panelTexture);
@@ -512,6 +562,10 @@ public sealed class Plugin : BaseUnityPlugin
             if (GUILayout.Button("Next", _buttonStyle, GUILayout.Height(30))) VisitBot(1);
             GUILayout.EndHorizontal();
             GUILayout.Label(_navigator.Caption, _textStyle);
+            if (GUILayout.Button(_navigator.Following ? "Stop following" : "Follow selected bot", _buttonStyle, GUILayout.Height(30))) ToggleFollow();
+            if (_navigator.Following && GUILayout.Button(_navigator.LockOrientation ? "Orientation: bot view" : "Orientation: mouse orbit", _buttonStyle, GUILayout.Height(30))) _navigator.ToggleOrientation();
+            if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: toggle orientation / mouse orbit", _textStyle);
+            GUILayout.Label($"{_settings.FollowKey.Value}: follow / free camera. Drag the title to move this menu.", _textStyle);
             _settings.CycleBots.Value = GUILayout.Toggle(_settings.CycleBots.Value, "Switch bots with the mouse wheel", _toggleStyle);
             GUILayout.Space(10);
             if (_botDebugReady)
@@ -524,13 +578,15 @@ public sealed class Plugin : BaseUnityPlugin
             GUILayout.Label("More settings: F12 > HORIZON. Movement: Freecam controls.", _textStyle);
             GUILayout.EndScrollView();
             GUILayout.Space(10);
-            if (GUILayout.Button("Resume Freecam", _buttonStyle, GUILayout.Height(34))) { _menuOpen = false; _camera.SetMenu(false); }
+            if (GUILayout.Button("Resume camera", _buttonStyle, GUILayout.Height(34))) { _menuOpen = false; _camera.SetMenu(false, _navigator.Following); }
             if (GUILayout.Button("Leave raid", _buttonStyle, GUILayout.Height(34))) LeaveRaid("button");
         }
         else
         {
             GUILayout.Label("Spectating | Esc: menu / Leave raid", _textStyle);
             if (_settings.CycleBots.Value) GUILayout.Label(_navigator.Caption, _textStyle);
+            GUILayout.Label($"{_settings.FollowKey.Value}: {(_navigator.Following ? "stop following" : "follow bot")} | Hold Left Alt to drag", _textStyle);
+            if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: {(_navigator.LockOrientation ? "bot view" : "mouse orbit")}", _textStyle);
         }
         GUILayout.EndArea();
         GUI.depth = oldDepth;

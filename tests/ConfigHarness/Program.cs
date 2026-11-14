@@ -1,6 +1,21 @@
 using BepInEx.Configuration;
 using Horizon;
 using UnityEngine;
+using System.Globalization;
+
+// Unity's native JsonUtility is unavailable in this console harness. Keep the
+// real BepInEx config pipeline and substitute only its Vector2 codec.
+var vectorCodec = TomlTypeConverter.GetConverter(typeof(Vector2));
+vectorCodec.ConvertToString = (value, _) =>
+{
+    var v = (Vector2)value;
+    return v.x.ToString(CultureInfo.InvariantCulture) + "," + v.y.ToString(CultureInfo.InvariantCulture);
+};
+vectorCodec.ConvertToObject = (value, _) =>
+{
+    var parts = value.Split(',');
+    return new Vector2(float.Parse(parts[0], CultureInfo.InvariantCulture), float.Parse(parts[1], CultureInfo.InvariantCulture));
+};
 
 int checks = 0;
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); checks++; }
@@ -14,6 +29,10 @@ try
     Check(fresh.Targets.Value == BotFilter.PmcOnly && fresh.CycleBots.Value && !fresh.ReverseWheel.Value, "PMC-only wheel navigation by default");
     Check(fresh.VisitDistance.Value == 2.5f && !fresh.AutoBotDebug.Value && fresh.ShowHelp.Value, "Default camera/help preferences and BotDebug OFF");
     Check(fresh.MenuKey.Value.MainKey == KeyCode.Escape, "Escape opens spectator menu by default");
+    Check(fresh.FollowKey.Value.MainKey == KeyCode.F && fresh.OrientationKey.Value.MainKey == KeyCode.R, "Independent follow and orientation keys");
+    fresh.HelpPosition.Value = new Vector2(.25f, .75f);
+    fresh.MenuPosition.Value = new Vector2(.6f, .2f);
+    fresh.OrientationKey.Value = new KeyboardShortcut(KeyCode.F8);
     fresh.AfterDeath.Value = false;
     fresh.AfterExtraction.Value = false;
     fresh.Targets.Value = BotFilter.AllBots;
@@ -22,6 +41,8 @@ try
     fresh.ShowHelp.Value = false;
     fresh.VisitDistance.Value = 5f;
     var reload = new SpectatorSettings(new ConfigFile(path, false));
+    Check(reload.HelpPosition.Value.x == .25f && reload.HelpPosition.Value.y == .75f && reload.MenuPosition.Value.x == .6f && reload.MenuPosition.Value.y == .2f, "Separate dragged panel positions survive restart");
+    Check(reload.OrientationKey.Value.MainKey == KeyCode.F8, "Customized orientation key survives restart");
     Check(!reload.AfterDeath.Value && !reload.AfterExtraction.Value && !reload.ShowHelp.Value && !reload.AutoBotDebug.Value, "Independent toggles survive restart");
     Check(reload.Targets.Value == BotFilter.AllBots && reload.ReverseWheel.Value && reload.VisitDistance.Value == 5f, "Navigation preferences survive restart");
     reload.VisitDistance.Value = 1000f;

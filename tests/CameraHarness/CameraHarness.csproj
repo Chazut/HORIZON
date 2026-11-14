@@ -12,4 +12,5 @@
     <Compile Include="../../src/PmcNavigator.cs" Link="Production/PmcNavigator.cs" />
     <Compile Include="../../src/BotFilter.cs" Link="Production/BotFilter.cs" />
   </ItemGroup>
+  <ItemGroup><Compile Include="../../src/SpectatorEffects.cs" Link="SpectatorEffects.cs" /></ItemGroup>
 </Project>

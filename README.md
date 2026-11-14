@@ -12,6 +12,8 @@ Keep watching your solo SPT raid after death or extraction. Fly freely around th
 
 - Continue after death, extraction, or both.
 - Use the mouse wheel to jump between **PMCs only** or **all living bots**.
+- Follow a bot, either looking in its direction or orbiting around it with the mouse.
+- Drag the spectator panels and watch without lingering player injury or flash effects.
 - Optionally show BotDebug's overlay. OFF by default; requires BotDebug.
 - Wait for Killcam to finish, if installed.
 - Keep your original raid result, loot and play time. Spectating adds no survival time.
@@ -33,6 +35,8 @@ ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectato
 ## Controls
 
 Use Freecam's usual movement controls. **Mouse wheel** visits bots; **Escape** opens the spectator menu, where you can change the bot filter, toggle BotDebug or choose **Leave raid** to save and exit.
+
+**F** attaches/detaches the camera. **R** switches between the bot's viewing direction and free mouse orbit. Both keys, mouse sensitivity and camera distance are configurable in F12. Hold **Left Alt** to drag the help panel by its title; drag the menu by its title while it is open. Their positions are saved.
 
 ---
 

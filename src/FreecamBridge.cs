@@ -21,6 +21,7 @@ internal sealed class FreecamBridge
     private bool _cursorVisible;
     private DeathFade? _deathFade;
     private FastBlur? _deathBlur;
+    private readonly SpectatorEffects _effects = new();
     public bool Ready => Controller != null && Script != null && Script.gameObject.activeInHierarchy;
 
     // Check readiness before deferring death without taking the camera away from Killcam.
@@ -63,6 +64,7 @@ internal sealed class FreecamBridge
         script.IsActive = true;
         _hud.SetActive(false);
         ClearDeathEffects();
+        _effects.Attach(camera);
         return true;
     }
 
@@ -73,9 +75,11 @@ internal sealed class FreecamBridge
         if (_deathBlur != null) _deathBlur.Reset();
     }
 
-    public void SetMenu(bool open)
+    public void MaintainEffects() => _effects.Maintain();
+
+    public void SetMenu(bool open, bool following = false)
     {
-        if (Script != null) Script.IsActive = !open;
+        if (Script != null) Script.IsActive = !open && !following;
         Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
         Cursor.visible = open;
     }
@@ -87,6 +91,7 @@ internal sealed class FreecamBridge
 
     public void Release(bool ending = false)
     {
+        _effects.Restore();
         // Also used when entering spectator mode fails: restore exactly what we touched.
         if (Script != null)
         {

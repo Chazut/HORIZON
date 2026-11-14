@@ -2,6 +2,7 @@
 // they do not simulate rendering, physics, audio, or the game's death callbacks.
 namespace UnityEngine
 {
+    public static class Shader { public static float Blindness; public static void SetGlobalFloat(string name, float value) { if (name == "_BlindnessCoef") Blindness = value; } }
     public class Object { public static void Destroy(object obj) { } }
     public struct Vector3
     {
@@ -41,7 +42,9 @@ namespace UnityEngine
         public T? GetComponent<T>() where T : class => gameObject.Components.GetValueOrDefault(typeof(T)) as T;
         public T[] GetComponentsInChildren<T>(bool inactive) => gameObject.Components.Values.OfType<T>().ToArray();
     }
-    public class MonoBehaviour : Component { public bool enabled = true; }
+    public class Behaviour : Component { public bool enabled = true; }
+    public class MonoBehaviour : Behaviour { }
+    public static class Time { public static float unscaledTime; }
     public class Camera : MonoBehaviour
     {
         public static Camera main { get; set; } = new();
@@ -89,6 +92,7 @@ namespace EFT
         public string ProfileId { get; set; } = "local";
         public AIData AIData = new();
         public UnityEngine.Vector3 Position => gameObject.transform.position;
+        public UnityEngine.Vector3 LookDirection = new(0, 0, 1);
         public BifacialTransform Transform => new(gameObject.transform);
     }
     public class GameWorld
@@ -152,8 +156,11 @@ namespace Terkoiz.Freecam
     public class Freecam : UnityEngine.MonoBehaviour { public bool IsActive; }
     public static class FreecamPlugin { public static FreecamController? FreecamControllerInstance; }
 }
-public class DeathFade { public int Clears; public void DisableEffect() => Clears++; }
-public class FastBlur { public int Clears; public void Reset() => Clears++; }
+public class DeathFade : UnityEngine.Behaviour { public int Clears; public void DisableEffect() => Clears++; }
+public class FastBlur : UnityEngine.Behaviour { public int Clears; public void Reset() => Clears++; }
+public class PainScreen : UnityEngine.Behaviour { }
+public class GrenadeFlashScreenEffect : UnityEngine.Behaviour { public float EffectStrength; }
+public class WorldLighting : UnityEngine.Behaviour { }
 public struct DebugBotStruct
 {
     public bool InitedBotData;
