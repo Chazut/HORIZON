@@ -49,6 +49,8 @@ public sealed class Plugin : BaseUnityPlugin
     private ExitStatus SavedResult => _session.Outcome == WatchOutcome.Survived ? ExitStatus.Survived :
         _session.Outcome == WatchOutcome.Runner ? ExitStatus.Runner : ExitStatus.Killed;
     private GUIStyle? _titleStyle, _textStyle, _buttonStyle, _toggleStyle;
+    private GUIStyle? _verticalScrollbar, _horizontalScrollbar;
+    private float _interfaceScale;
     private Texture2D? _panelTexture;
     private Vector2 _menuScroll;
     private int _dragControl;
@@ -285,10 +287,16 @@ public sealed class Plugin : BaseUnityPlugin
         if (!_menuOpen && !ConfigurationIsOpen() && _settings.FollowKey.Value.IsDown()) ToggleFollow();
         if (!CameraMenu && _navigator.Following && _settings.OrientationKey.Value.IsDown()) _navigator.ToggleOrientation();
         if (!CameraMenu) _navigator.Rotate(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"), _settings.OrbitSensitivity.Value);
-        if (!_menuOpen && !ConfigurationIsOpen() && _settings.CycleBots.Value)
+        var wheelAction = WheelAction();
+        if (wheelAction == SpectatorWheelAction.Zoom || wheelAction == SpectatorWheelAction.Cycle)
         {
             float wheel = Input.GetAxis("Mouse ScrollWheel");
-            if (wheel != 0) VisitBot((wheel > 0 ? 1 : -1) * (_settings.ReverseWheel.Value ? -1 : 1));
+            if (wheel != 0)
+            {
+                if (wheelAction == SpectatorWheelAction.Cycle) VisitBot((wheel > 0 ? 1 : -1) * (_settings.ReverseWheel.Value ? -1 : 1));
+                else if (_navigator.Following) _navigator.Zoom(wheel, _settings.ZoomSpeed.Value, _settings.VisitDistance.Value);
+                else _camera.Zoom(wheel, _settings.ZoomSpeed.Value);
+            }
         }
         // A menu/F12 BotDebug toggle must not be undone on the next frame.
         // Only an explicit change to the automatic preference applies it again.
@@ -470,8 +478,18 @@ public sealed class Plugin : BaseUnityPlugin
         if (count == 0) throw new InvalidOperationException("Freecam input API changed; spectator wheel interception unavailable");
     }
 
+    private SpectatorWheelAction WheelAction()
+    {
+        var shortcut = _settings.ZoomKey.Value;
+        bool held = shortcut.MainKey != KeyCode.None && Input.GetKey(shortcut.MainKey);
+        // Movement keys may stay held while zooming. Only the configured keys
+        // are required; unrelated held keys do not cancel the shortcut.
+        foreach (var modifier in shortcut.Modifiers) held &= Input.GetKey(modifier);
+        return SpectatorWheel.Route(CameraWatching, CameraMenu, held, _settings.CycleBots.Value);
+    }
+
     private static float ReadFreecamAxis(string axis) => axis == "Mouse ScrollWheel" &&
-        _instance?.CameraWatching == true && (_instance._settings.CycleBots.Value || _instance._menuOpen || _instance.ConfigurationIsOpen()) ? 0f : Input.GetAxis(axis);
+        _instance?.CameraWatching == true && _instance.WheelAction() != SpectatorWheelAction.Native ? 0f : Input.GetAxis(axis);
 
     private void VisitBot(int direction)
     {
@@ -496,25 +514,47 @@ public sealed class Plugin : BaseUnityPlugin
         return false;
     }
 
+    private static GUIStyle ScaledStyle(GUIStyle source, float scale, int fontSize = 0)
+    {
+        RectOffset Offset(RectOffset value) => new(Mathf.RoundToInt(value.left * scale), Mathf.RoundToInt(value.right * scale),
+            Mathf.RoundToInt(value.top * scale), Mathf.RoundToInt(value.bottom * scale));
+        return new GUIStyle(source)
+        {
+            fontSize = Mathf.RoundToInt((fontSize > 0 ? fontSize : source.fontSize) * scale),
+            padding = Offset(source.padding), margin = Offset(source.margin), border = Offset(source.border),
+            fixedWidth = source.fixedWidth * scale, fixedHeight = source.fixedHeight * scale
+        };
+    }
+
     private void OnGUI()
     {
         if (!CameraWatching || ConfigurationIsOpen() || (!_menuOpen && !_settings.ShowHelp.Value)) return;
-        if (_titleStyle == null)
+        float scale = SpectatorInterface.Scale(Screen.height, _settings.AutomaticScale.Value, _settings.InterfaceScale.Value);
+        if (_titleStyle == null || _interfaceScale != scale)
         {
-            _titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 17, fontStyle = FontStyle.Bold };
-            _textStyle = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true };
-            _buttonStyle = new GUIStyle(GUI.skin.button) { fontSize = 14 };
-            _toggleStyle = new GUIStyle(GUI.skin.toggle) { fontSize = 13, wordWrap = true };
+            _interfaceScale = scale;
+            _titleStyle = ScaledStyle(GUI.skin.label, scale, 17); _titleStyle.fontStyle = FontStyle.Bold;
+            _textStyle = ScaledStyle(GUI.skin.label, scale, 13); _textStyle.wordWrap = true;
+            _buttonStyle = ScaledStyle(GUI.skin.button, scale, 14);
+            _toggleStyle = ScaledStyle(GUI.skin.toggle, scale, 13); _toggleStyle.wordWrap = true;
+            _verticalScrollbar = ScaledStyle(GUI.skin.verticalScrollbar, scale);
+            _horizontalScrollbar = ScaledStyle(GUI.skin.horizontalScrollbar, scale);
+            if (_dragControl != 0 && GUIUtility.hotControl == _dragControl) GUIUtility.hotControl = 0;
+            _dragControl = 0; _dragPosition = null;
+        }
+        if (_panelTexture == null)
+        {
             _panelTexture = new Texture2D(1, 1);
             _panelTexture.SetPixel(0, 0, new Color(0.055f, 0.07f, 0.09f, 0.94f));
             _panelTexture.Apply();
         }
-        float width = Mathf.Min(_menuOpen ? 400 : 330, Screen.width - 32);
-        float height = Mathf.Min(_menuOpen ? 560 : 150, Screen.height - 40);
+        float marginX = 16 * scale, marginY = 20 * scale;
+        float width = Mathf.Max(1, Mathf.Min((_menuOpen ? 400 : 330) * scale, Screen.width - marginX * 2));
+        float height = Mathf.Max(1, Mathf.Min((_menuOpen ? 660 : 185) * scale, Screen.height - marginY * 2));
         var position = _menuOpen ? _settings.MenuPosition : _settings.HelpPosition;
-        var available = new Vector2(Mathf.Max(0, Screen.width - width - 32), Mathf.Max(0, Screen.height - height - 40));
+        var available = new Vector2(SpectatorInterface.Available(Screen.width, width, marginX), SpectatorInterface.Available(Screen.height, height, marginY));
         var normalized = _dragPosition ?? position.Value;
-        var rect = new Rect(16 + Mathf.Clamp01(normalized.x) * available.x, 20 + Mathf.Clamp01(normalized.y) * available.y, width, height);
+        var rect = new Rect(SpectatorInterface.Position(normalized.x, available.x, marginX), SpectatorInterface.Position(normalized.y, available.y, marginY), width, height);
         int control = GUIUtility.GetControlID(_menuOpen ? 82141 : 82142, FocusType.Passive);
         if (_dragControl != 0 && (_dragControl != control || !CameraMenu))
         {
@@ -523,7 +563,7 @@ public sealed class Plugin : BaseUnityPlugin
             _dragPosition = null;
         }
         var ev = Event.current;
-        if (ev.type == EventType.MouseDown && ev.button == 0 && new Rect(rect.x, rect.y, rect.width, 38).Contains(ev.mousePosition) && CameraMenu)
+        if (ev.type == EventType.MouseDown && ev.button == 0 && new Rect(rect.x, rect.y, rect.width, 38 * scale).Contains(ev.mousePosition) && CameraMenu)
         {
             _dragControl = control; GUIUtility.hotControl = control;
             _dragOrigin = ev.mousePosition; _dragPanel = new Vector2(rect.x, rect.y); ev.Use();
@@ -533,7 +573,7 @@ public sealed class Plugin : BaseUnityPlugin
             if (ev.type == EventType.MouseDrag)
             {
                 var p = _dragPanel + ev.mousePosition - _dragOrigin;
-                _dragPosition = new Vector2(available.x > 0 ? Mathf.Clamp01((p.x - 16) / available.x) : 0, available.y > 0 ? Mathf.Clamp01((p.y - 20) / available.y) : 0);
+                _dragPosition = new Vector2(SpectatorInterface.Normalize(p.x, available.x, marginX), SpectatorInterface.Normalize(p.y, available.y, marginY));
                 ev.Use();
             }
             if (ev.type == EventType.MouseUp)
@@ -545,29 +585,39 @@ public sealed class Plugin : BaseUnityPlugin
         int oldDepth = GUI.depth;
         GUI.depth = -100;
         GUI.DrawTexture(rect, _panelTexture);
-        GUILayout.BeginArea(new Rect(rect.x + 16, rect.y + 12, rect.width - 32, rect.height - 20));
+        GUILayout.BeginArea(new Rect(rect.x + 16 * scale, rect.y + 12 * scale, rect.width - 32 * scale, rect.height - 20 * scale));
         GUILayout.Label("HORIZON", _titleStyle);
         if (_menuOpen)
         {
-            _menuScroll = GUILayout.BeginScrollView(_menuScroll);
+            _menuScroll = GUILayout.BeginScrollView(_menuScroll, _horizontalScrollbar, _verticalScrollbar);
             GUILayout.Label(_session.Extracted ? "You extracted. The raid continues." : "You died. The raid continues.", _textStyle);
             GUILayout.Label($"Leave raid to save your original {SavedResult} result.", _textStyle);
-            GUILayout.Space(12);
+            GUILayout.Space(12 * scale);
             GUILayout.Label("Visit a bot", _titleStyle);
-            int filter = GUILayout.SelectionGrid(_settings.Targets.Value == BotFilter.AllBots ? 1 : 0, TargetLabels, 2, _buttonStyle, GUILayout.Height(30));
+            int filter = GUILayout.SelectionGrid(_settings.Targets.Value == BotFilter.AllBots ? 1 : 0, TargetLabels, 2, _buttonStyle, GUILayout.Height(30 * scale));
             _settings.Targets.Value = filter == 1 ? BotFilter.AllBots : BotFilter.PmcOnly;
             _navigator.SetFilter(_settings.Targets.Value);
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Previous", _buttonStyle, GUILayout.Height(30))) VisitBot(-1);
-            if (GUILayout.Button("Next", _buttonStyle, GUILayout.Height(30))) VisitBot(1);
+            if (GUILayout.Button("Previous", _buttonStyle, GUILayout.Height(30 * scale))) VisitBot(-1);
+            if (GUILayout.Button("Next", _buttonStyle, GUILayout.Height(30 * scale))) VisitBot(1);
             GUILayout.EndHorizontal();
             GUILayout.Label(_navigator.Caption, _textStyle);
-            if (GUILayout.Button(_navigator.Following ? "Stop following" : "Follow selected bot", _buttonStyle, GUILayout.Height(30))) ToggleFollow();
-            if (_navigator.Following && GUILayout.Button(_navigator.LockOrientation ? "Orientation: bot view" : "Orientation: mouse orbit", _buttonStyle, GUILayout.Height(30))) _navigator.ToggleOrientation();
+            if (GUILayout.Button(_navigator.Following ? "Stop following" : "Follow selected bot", _buttonStyle, GUILayout.Height(30 * scale))) ToggleFollow();
+            if (_navigator.Following && GUILayout.Button(_navigator.LockOrientation ? "Orientation: bot view" : "Orientation: mouse orbit", _buttonStyle, GUILayout.Height(30 * scale))) _navigator.ToggleOrientation();
             if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: toggle orientation / mouse orbit", _textStyle);
             GUILayout.Label($"{_settings.FollowKey.Value}: follow / free camera. Drag the title to move this menu.", _textStyle);
             _settings.CycleBots.Value = GUILayout.Toggle(_settings.CycleBots.Value, "Switch bots with the mouse wheel", _toggleStyle);
-            GUILayout.Space(10);
+            GUILayout.Label(ZoomHint, _textStyle);
+            GUILayout.Space(10 * scale);
+            GUILayout.Label("Interface size", _titleStyle);
+            _settings.AutomaticScale.Value = GUILayout.Toggle(_settings.AutomaticScale.Value, "Adapt to screen resolution", _toggleStyle);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Smaller", _buttonStyle, GUILayout.Height(30 * scale))) _settings.InterfaceScale.Value = Mathf.Max(.75f, _settings.InterfaceScale.Value - .1f);
+            GUILayout.Label($"{_settings.InterfaceScale.Value:P0}", _textStyle);
+            if (GUILayout.Button("Larger", _buttonStyle, GUILayout.Height(30 * scale))) _settings.InterfaceScale.Value = Mathf.Min(2.5f, _settings.InterfaceScale.Value + .1f);
+            GUILayout.EndHorizontal();
+            if (GUILayout.Button("Reset interface size", _buttonStyle, GUILayout.Height(30 * scale))) { _settings.AutomaticScale.Value = true; _settings.InterfaceScale.Value = 1; }
+            GUILayout.Space(10 * scale);
             if (_botDebugReady)
             {
                 bool overlay = GUILayout.Toggle(_botDebug.Enabled, "BotDebug overlay (this raid)", _toggleStyle);
@@ -577,9 +627,9 @@ public sealed class Plugin : BaseUnityPlugin
             _settings.ShowHelp.Value = GUILayout.Toggle(_settings.ShowHelp.Value, "Show help while moving the camera", _toggleStyle);
             GUILayout.Label("More settings: F12 > HORIZON. Movement: Freecam controls.", _textStyle);
             GUILayout.EndScrollView();
-            GUILayout.Space(10);
-            if (GUILayout.Button("Resume camera", _buttonStyle, GUILayout.Height(34))) { _menuOpen = false; _camera.SetMenu(false, _navigator.Following); }
-            if (GUILayout.Button("Leave raid", _buttonStyle, GUILayout.Height(34))) LeaveRaid("button");
+            GUILayout.Space(10 * scale);
+            if (GUILayout.Button("Resume camera", _buttonStyle, GUILayout.Height(34 * scale))) { _menuOpen = false; _camera.SetMenu(false, _navigator.Following); }
+            if (GUILayout.Button("Leave raid", _buttonStyle, GUILayout.Height(34 * scale))) LeaveRaid("button");
         }
         else
         {
@@ -587,10 +637,13 @@ public sealed class Plugin : BaseUnityPlugin
             if (_settings.CycleBots.Value) GUILayout.Label(_navigator.Caption, _textStyle);
             GUILayout.Label($"{_settings.FollowKey.Value}: {(_navigator.Following ? "stop following" : "follow bot")} | Hold Left Alt to drag", _textStyle);
             if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: {(_navigator.LockOrientation ? "bot view" : "mouse orbit")}", _textStyle);
+            GUILayout.Label(ZoomHint, _textStyle);
         }
         GUILayout.EndArea();
         GUI.depth = oldDepth;
     }
+
+    private string ZoomHint => _settings.ZoomKey.Value.MainKey == KeyCode.None ? "Zoom shortcut disabled (F12)" : $"Hold {_settings.ZoomKey.Value} + wheel: zoom";
 
     private void OnApplicationQuit() => _quitting = true;
 

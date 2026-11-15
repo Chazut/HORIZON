@@ -30,6 +30,12 @@ try
     Check(fresh.VisitDistance.Value == 2.5f && !fresh.AutoBotDebug.Value && fresh.ShowHelp.Value, "Default camera/help preferences and BotDebug OFF");
     Check(fresh.MenuKey.Value.MainKey == KeyCode.Escape, "Escape opens spectator menu by default");
     Check(fresh.FollowKey.Value.MainKey == KeyCode.F && fresh.OrientationKey.Value.MainKey == KeyCode.R, "Independent follow and orientation keys");
+    Check(fresh.AutomaticScale.Value && fresh.InterfaceScale.Value == 1f, "New and existing configs use resolution-aware UI scaling");
+    Check(fresh.ZoomKey.Value.MainKey == KeyCode.LeftControl && fresh.ZoomSpeed.Value == 5f, "Ctrl and wheel zoom is enabled by default");
+    fresh.AutomaticScale.Value = false;
+    fresh.InterfaceScale.Value = 1.75f;
+    fresh.ZoomKey.Value = new KeyboardShortcut(KeyCode.Z);
+    fresh.ZoomSpeed.Value = 3f;
     fresh.HelpPosition.Value = new Vector2(.25f, .75f);
     fresh.MenuPosition.Value = new Vector2(.6f, .2f);
     fresh.OrientationKey.Value = new KeyboardShortcut(KeyCode.F8);
@@ -41,6 +47,12 @@ try
     fresh.ShowHelp.Value = false;
     fresh.VisitDistance.Value = 5f;
     var reload = new SpectatorSettings(new ConfigFile(path, false));
+    Check(!reload.AutomaticScale.Value && reload.InterfaceScale.Value == 1.75f, "Manual scale survives restart");
+    Check(reload.ZoomKey.Value.MainKey == KeyCode.Z && reload.ZoomSpeed.Value == 3f, "Zoom key and speed survive restart");
+    reload.InterfaceScale.Value = 100;
+    Check(reload.InterfaceScale.Value == 2.5f, "Maximum interface scale bounded");
+    reload.InterfaceScale.Value = .1f;
+    Check(reload.InterfaceScale.Value == .75f, "Minimum interface scale bounded");
     Check(reload.HelpPosition.Value.x == .25f && reload.HelpPosition.Value.y == .75f && reload.MenuPosition.Value.x == .6f && reload.MenuPosition.Value.y == .2f, "Separate dragged panel positions survive restart");
     Check(reload.OrientationKey.Value.MainKey == KeyCode.F8, "Customized orientation key survives restart");
     Check(!reload.AfterDeath.Value && !reload.AfterExtraction.Value && !reload.ShowHelp.Value && !reload.AutoBotDebug.Value, "Independent toggles survive restart");
@@ -50,6 +62,7 @@ try
     path = Path.Combine(dir, "legacy.cfg");
     File.WriteAllText(path, "[General]\nEnabled = false\nSpectate after extraction = false\nCycle PMCs with mouse wheel = false\nAutomatic BotDebug overlay = false\nSpectator menu = F7\n");
     var migrated = new SpectatorSettings(new ConfigFile(path, false));
+    Check(migrated.AutomaticScale.Value && migrated.InterfaceScale.Value == 1 && migrated.ZoomKey.Value.MainKey == KeyCode.LeftControl, "Old config receives UI and zoom defaults without changing existing controls");
     Check(!migrated.Enabled.Value && !migrated.AfterExtraction.Value && !migrated.CycleBots.Value && !migrated.AutoBotDebug.Value && migrated.MenuKey.Value.MainKey == KeyCode.F7, "Legacy preferences are kept when updating Raid Spectator");
     Check(!File.ReadAllText(path).Contains("Cycle PMCs with mouse wheel") && File.ReadAllText(path).Contains("Cycle bots with mouse wheel = false"), "Legacy wheel entry is replaced without conflicting duplicate");
     Check(!new SpectatorSettings(new ConfigFile(path, false)).CycleBots.Value, "Migration is idempotent");

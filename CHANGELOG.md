@@ -1,3 +1,8 @@
+# Unreleased
+
+- Larger interface on high-resolution monitors, with automatic scaling and manual size controls in the spectator menu and F12.
+- Hold Left Ctrl and scroll to zoom without switching bots, in Freecam or while following. Shortcut and speed are configurable.
+
 # HORIZON 1.1.0
 
 - **Follow a bot:** press F to attach/detach the camera, and R to switch between following its view and rotating around it with your mouse.

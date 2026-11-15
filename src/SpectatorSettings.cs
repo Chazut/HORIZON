@@ -20,6 +20,10 @@ internal sealed class SpectatorSettings
     public ConfigEntry<KeyboardShortcut> FollowKey { get; }
     public ConfigEntry<KeyboardShortcut> OrientationKey { get; }
     public ConfigEntry<float> OrbitSensitivity { get; }
+    public ConfigEntry<KeyboardShortcut> ZoomKey { get; }
+    public ConfigEntry<float> ZoomSpeed { get; }
+    public ConfigEntry<bool> AutomaticScale { get; }
+    public ConfigEntry<float> InterfaceScale { get; }
     public ConfigEntry<Vector2> HelpPosition { get; }
     public ConfigEntry<Vector2> MenuPosition { get; }
 
@@ -58,6 +62,10 @@ internal sealed class SpectatorSettings
             FollowKey = config.Bind("General", "Follow selected bot", new KeyboardShortcut(KeyCode.F), "Toggle a camera following the selected bot. Scroll or use Next/Previous to switch targets. Press again to return to Freecam. Only active while spectating, outside menus.");
             OrientationKey = config.Bind("General", "Follow camera orientation", new KeyboardShortcut(KeyCode.R), "While following, toggle between the bot's look direction and free mouse rotation around the bot.");
             OrbitSensitivity = config.Bind("General", "Orbit mouse sensitivity", 3f, new ConfigDescription("Mouse sensitivity when rotating around the followed bot.", new AcceptableValueRange<float>(0.1f, 10f)));
+            ZoomKey = config.Bind("General", "Camera zoom modifier", new KeyboardShortcut(KeyCode.LeftControl), "Hold this key and scroll to move the camera closer/further, without switching bots. Also works while following a bot. Menus keep the wheel for scrolling. Left Alt is reserved for dragging the panel. None disables this shortcut.");
+            ZoomSpeed = config.Bind("General", "Camera zoom speed", 5f, new ConfigDescription("Camera movement per mouse-wheel input. Follow distance stays between 1 and 10 metres; Freecam moves along its viewing direction. Does not change the field of view.", new AcceptableValueRange<float>(0.5f, 20f)));
+            AutomaticScale = config.Bind("Interface", "Automatic interface scale", true, "Scale the HORIZON help panel and menu for your screen height: 100% at 1080p, 133% at 1440p and 200% at 4K. Interface scale applies on top. Disable for a fixed size.");
+            InterfaceScale = config.Bind("Interface", "Interface scale", 1f, new ConfigDescription("Size of HORIZON text, panels and buttons. 1 = 100%, 1.5 = 150%, 2 = 200%. Applied on top of automatic resolution scaling. Changes immediately; does not resize F12 or other mods.", new AcceptableValueRange<float>(0.75f, 2.5f)));
             HelpPosition = config.Bind("Interface", "Help panel position", new Vector2(1f, 0f), "Saved relative position. Hold Left Alt and drag the HORIZON header to move the small panel.");
             MenuPosition = config.Bind("Interface", "Menu position", new Vector2(1f, 0f), "Saved relative position. Drag the HORIZON header to move the open menu.");
         }

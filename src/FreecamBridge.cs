@@ -89,6 +89,11 @@ internal sealed class FreecamBridge
         if (Ready) Script!.transform.SetPositionAndRotation(position, rotation);
     }
 
+    public void Zoom(float wheel, float speed)
+    {
+        if (Ready) Script!.transform.position += Script.transform.forward * (wheel * speed);
+    }
+
     public void Release(bool ending = false)
     {
         _effects.Restore();

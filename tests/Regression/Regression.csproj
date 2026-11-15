@@ -10,6 +10,8 @@
     <Compile Include="../../src/PmcCycle.cs" Link="Production/PmcCycle.cs" />
     <Compile Include="../../src/SpectatorSession.cs" Link="Production/SpectatorSession.cs" />
     <Compile Include="../../src/SpectatorPhysics.cs" Link="Production/SpectatorPhysics.cs" />
+    <Compile Include="../../src/SpectatorInterface.cs" Link="Production/SpectatorInterface.cs" />
+    <Compile Include="../../src/SpectatorWheel.cs" Link="Production/SpectatorWheel.cs" />
     <Reference Include="Mono.Cecil" HintPath="$(SptRoot)/BepInEx/core/Mono.Cecil.dll" />
   </ItemGroup>
 </Project>

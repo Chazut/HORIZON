@@ -9,6 +9,41 @@ void Check(bool value, string name)
     assertions++;
 }
 
+Check(SpectatorInterface.Scale(1080, true, 1) == 1, "1080p preserves the original UI size");
+Check(SpectatorInterface.Scale(2160, true, 1) == 2, "4K doubles text, panels and controls");
+Check(Math.Abs(SpectatorInterface.Scale(1440, true, 1) - 4f / 3) < .001f, "1440p scales by height, including ultrawide");
+Check(SpectatorInterface.Scale(2160, false, 1.5f) == 1.5f, "Manual size works independently of resolution");
+Check(SpectatorInterface.Scale(2160, true, float.NaN) == 2, "Malformed scale cannot hide the interface");
+foreach (var screen in new[] { (1920, 1080), (2560, 1440), (3440, 1440), (3840, 2160), (1280, 720) })
+foreach (float preference in new[] { .75f, 1f, 1.5f, 2.5f })
+foreach (var panel in new[] { (330f, 185f), (400f, 660f) })
+{
+    float scale = SpectatorInterface.Scale(screen.Item2, true, preference);
+    foreach (var axis in new[] { ((float)screen.Item1, panel.Item1 * scale, 16 * scale), ((float)screen.Item2, panel.Item2 * scale, 20 * scale) })
+    {
+        float size = Math.Min(axis.Item2, axis.Item1 - 2 * axis.Item3);
+        float available = SpectatorInterface.Available(axis.Item1, size, axis.Item3);
+        foreach (float saved in new[] { 0f, .25f, 1f })
+        {
+            float position = SpectatorInterface.Position(saved, available, axis.Item3);
+            Check(position >= 0 && position + size <= axis.Item1, "Scaled panel remains visible at saved edge/center positions");
+            float normalized = SpectatorInterface.Normalize(position, available, axis.Item3);
+            Check(available == 0 || Math.Abs(saved - normalized) < .0001, "Physical drag coordinates preserve relative placement at every scale");
+        }
+    }
+}
+Check(SpectatorInterface.Normalize(-100, 100, 16) == 0 && SpectatorInterface.Normalize(10000, 100, 16) == 1, "Dragging outside the screen clamps to its edges");
+foreach (bool cycling in new[] { false, true })
+foreach (bool zoom in new[] { false, true })
+{
+    Check(SpectatorWheel.Route(false, false, zoom, cycling) == SpectatorWheelAction.Native, "Normal gameplay retains native wheel input");
+    Check(SpectatorWheel.Route(true, true, zoom, cycling) == SpectatorWheelAction.Blocked, "Escape/F12/Alt capture wheel without zooming or cycling");
+}
+Check(SpectatorWheel.Route(true, false, true, true) == SpectatorWheelAction.Zoom, "Zoom modifier overrides bot cycling");
+Check(SpectatorWheel.Route(true, false, true, false) == SpectatorWheelAction.Zoom, "Explicit zoom works with cycling disabled");
+Check(SpectatorWheel.Route(true, false, false, true) == SpectatorWheelAction.Cycle, "Releasing the modifier restores bot cycling");
+Check(SpectatorWheel.Route(true, false, false, false) == SpectatorWheelAction.Native, "Cycling disabled leaves ordinary Freecam wheel behavior intact");
+
 var start = new DateTime(2026, 11, 11, 12, 0, 0, DateTimeKind.Utc);
 // Reproduce the missing synchronization source without pretending to simulate
 // Unity collisions: the transform and the physics-query snapshot are separate.

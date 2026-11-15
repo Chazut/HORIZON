@@ -16,6 +16,18 @@ internal sealed class PmcNavigator
     public bool Following { get; private set; }
     public bool LockOrientation { get; private set; } = true;
     private float _yaw, _pitch;
+    private float _configuredDistance = float.NaN, _distance;
+
+    private float Distance(float configured)
+    {
+        if (_configuredDistance != configured) { _configuredDistance = configured; _distance = configured; }
+        return _distance;
+    }
+
+    public void Zoom(float wheel, float speed, float configuredDistance)
+    {
+        if (Following) _distance = Math.Max(1f, Math.Min(10f, Distance(configuredDistance) - wheel * speed));
+    }
 
     public void ToggleOrientation()
     {
@@ -89,6 +101,7 @@ internal sealed class PmcNavigator
 
     private void Place(FreecamBridge camera, Player target, float distance)
     {
+        distance = Distance(distance);
         Vector3 focus = target.Position + Vector3.up * 1.5f;
         Vector3 direction = target.LookDirection;
         if (!LockOrientation && Following)
@@ -109,6 +122,7 @@ internal sealed class PmcNavigator
         _cycle.Reset(); _ids.Clear(); _players.Clear();
         _target = null; Following = false;
         LockOrientation = true; _yaw = _pitch = 0;
+        _configuredDistance = float.NaN;
         Caption = _filter == BotFilter.AllBots ? "Wheel: previous / next bot" : "Wheel: previous / next PMC";
     }
 }

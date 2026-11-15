@@ -28,6 +28,15 @@ Before release, verify in real raids:
 
 Look for `[HORIZON]` in `BepInEx/LogOutput.log`. In addition to entry/exit messages, a physics summary every 30 seconds records synchronization cost and stale collider bounds. Checks every 5 seconds report severe falls, movement without displacement and stale bounds (at most once per bot per 30 seconds). These observations do not change bot behavior. There is no per-frame file output.
 
+## Interface scaling and zoom
+
+- At 1080p, 1440p, ultrawide 1440p and 4K, check automatic size, manual 75-250%, buttons, text, scrollbars and drag hit areas. Move both panels, change resolution and scale, then restart: relative positions and preferences must persist.
+- Use the menu's size controls and Reset. Resume/Leave raid must remain accessible while the settings area scrolls.
+- Hold Left Ctrl and scroll in Freecam, locked follow and mouse orbit. Only the camera moves closer/further; the selected bot and player body stay unchanged. Following still respects nearby walls.
+- Release Ctrl: the wheel switches bots again. Turn cycling off: ordinary Freecam wheel behavior remains available. Ctrl zoom must work even if Freecam's own wheel setting is off.
+- Scroll over Escape/F12 or while holding Left Alt to move the panel: no camera zoom or bot switch. Check a custom shortcut, None, and holding movement keys while zooming. A second raid must reset temporary follow distance.
+- Console checks cover layout arithmetic, wheel ownership, saved settings, camera movement and native DLL bindings. They do not render Unity IMGUI; real 4K presentation/input still needs an in-game check.
+
 ## Implementation
 
 The plugin delays the local death shutdown before `LocalGame.Stop` stops bot scenarios. It lets the real death callbacks, corpse creation and kill tracking run. Exit and timeout resume the native game shutdown and SPT profile-saving flow with the captured outcome. Extraction is intercepted at the same shutdown boundary after the game has decided Survived/Runner. The extracted body is removed from the world/AI player lists and deactivated (with its camera detached if necessary), without killing it or unloading its profile. Entry failures restore the touched state and allow the native ending. Freecam supplies the camera and its controls; it is not bundled or modified.
