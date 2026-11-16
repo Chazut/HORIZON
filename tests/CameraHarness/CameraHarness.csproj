@@ -11,6 +11,14 @@
     <Compile Include="../../src/PmcCycle.cs" Link="Production/PmcCycle.cs" />
     <Compile Include="../../src/PmcNavigator.cs" Link="Production/PmcNavigator.cs" />
     <Compile Include="../../src/BotFilter.cs" Link="Production/BotFilter.cs" />
+    <Compile Include="../../src/SpectatorOverlay.cs" Link="Production/SpectatorOverlay.cs" />
+    <Compile Include="../../src/BotPresentation.cs" Link="Production/BotPresentation.cs" />
+    <Compile Include="../../src/BotRoster.cs" Link="Production/BotRoster.cs" />
+    <Compile Include="../../src/OptionalBotData.cs" Link="Production/OptionalBotData.cs" />
+    <Compile Include="../../src/BotLabels.cs" Link="Production/BotLabels.cs" />
+    <Compile Include="../../src/BehaviorOwnership.cs" Link="Production/BehaviorOwnership.cs" />
+    <Compile Include="../../src/OrbitBehaviorDecision.cs" Link="Production/OrbitBehaviorDecision.cs" />
+    <Compile Include="../../src/CometBehaviorDecision.cs" Link="Production/CometBehaviorDecision.cs" />
   </ItemGroup>
   <ItemGroup><Compile Include="../../src/SpectatorEffects.cs" Link="SpectatorEffects.cs" /></ItemGroup>
 </Project>

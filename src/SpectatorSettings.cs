@@ -15,7 +15,11 @@ internal sealed class SpectatorSettings
     public ConfigEntry<bool> ReverseWheel { get; }
     public ConfigEntry<float> VisitDistance { get; }
     public ConfigEntry<bool> ShowHelp { get; }
-    public ConfigEntry<bool> AutoBotDebug { get; }
+    public ConfigEntry<SpectatorOverlay> Overlay { get; }
+    public ConfigEntry<bool> AutoSwitchOnDeath { get; }
+    public ConfigEntry<bool> ShowBotList { get; }
+    public ConfigEntry<float> LabelDistance { get; }
+    public ConfigEntry<Vector2> BotListPosition { get; }
     public ConfigEntry<KeyboardShortcut> MenuKey { get; }
     public ConfigEntry<KeyboardShortcut> FollowKey { get; }
     public ConfigEntry<KeyboardShortcut> OrientationKey { get; }
@@ -57,7 +61,13 @@ internal sealed class SpectatorSettings
             ReverseWheel = config.Bind("General", "Reverse mouse wheel", false, "Reverse the previous/next direction of the mouse wheel. Does not change the menu buttons.");
             VisitDistance = config.Bind("General", "Camera visit distance", 2.5f, new ConfigDescription("Distance in metres from a selected bot when visiting or following. Nearby walls shorten this distance.", new AcceptableValueRange<float>(1f, 10f)));
             ShowHelp = config.Bind("General", "Show spectator help", true, "Show the small HORIZON panel while moving the camera. The spectator menu remains accessible when hidden.");
-            AutoBotDebug = config.Bind("General", "Automatic BotDebug overlay", false, "If BotDebug is installed, enable its overlay when spectating starts. OFF by default; ignored when BotDebug is absent. You can also toggle it for the current raid in the spectator menu. The overlay is turned off when leaving, without rewriting BotDebug's saved configuration.");
+            var oldOverlay = config.Bind("General", "Automatic BotDebug overlay", false);
+            Overlay = config.Bind("Interface", "Bot overlay", oldOverlay.Value ? SpectatorOverlay.BotDebug : SpectatorOverlay.BotInfo, "Choose HORIZON information labels, BotDebug (if installed), or Off. Only one overlay is displayed. HORIZON labels show visible living bots and use optional integrations when present. BotDebug is never enabled by default and is turned off when leaving, without changing its saved configuration.");
+            config.Remove(oldOverlay.Definition);
+            AutoSwitchOnDeath = config.Bind("General", "Auto-switch when followed bot dies", false, "OFF: return to detached Freecam at the current camera position when the followed bot dies, extracts or disappears. ON: automatically follow the next living bot in the wheel filter.");
+            ShowBotList = config.Bind("Interface", "Show bot list", false, "Show all living AI bots grouped by squad. Hold Left Alt or open the spectator menu to click a bot and move the camera. Independent of the wheel filter; no player body is moved.");
+            LabelDistance = config.Bind("Interface", "Bot label distance", 150f, new ConfigDescription("Maximum distance in metres for HORIZON labels. Only bots in the camera view with an unobstructed head or torso are labelled.", new AcceptableValueRange<float>(20f, 500f)));
+            BotListPosition = config.Bind("Interface", "Bot list position", new Vector2(0f, 0f), "Saved relative position of the bot list. Hold Left Alt or open the menu, then drag its header.");
             MenuKey = config.Bind("General", "Spectator menu", new KeyboardShortcut(KeyCode.Escape), "Release the mouse and open camera controls, overlay options and Leave raid. Escape always works as a fallback. The raid keeps running while the menu is open.");
             FollowKey = config.Bind("General", "Follow selected bot", new KeyboardShortcut(KeyCode.F), "Toggle a camera following the selected bot. Scroll or use Next/Previous to switch targets. Press again to return to Freecam. Only active while spectating, outside menus.");
             OrientationKey = config.Bind("General", "Follow camera orientation", new KeyboardShortcut(KeyCode.R), "While following, toggle between the bot's look direction and free mouse rotation around the bot.");

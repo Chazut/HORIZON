@@ -256,6 +256,51 @@ using (var botdebug = AssemblyDefinition.ReadAssembly(Path.Combine(root, "BepInE
         Check(chains == 1, "Installed BotDebug supports spectator origin rewrite in " + method.Name);
     }
 }
+// Reflection bridges must match real binaries as well as the isolated behavior doubles.
+Check(!plugin.MainModule.AssemblyReferences.Any(a => new[] { "SAIN", "ORBIT", "COMET", "SPTQuestingBots", "LootingBots" }.Contains(a.Name)),
+    "Bot information has no hard assembly reference to optional AI mods");
+TypeReference PublicMember(TypeDefinition type, string name)
+{
+    for (var current = type; current != null; current = current.BaseType?.Resolve())
+    {
+        var property = current.Properties.FirstOrDefault(p => p.Name == name && p.GetMethod?.IsPublic == true);
+        if (property != null) { assertions++; return property.PropertyType; }
+        var field = current.Fields.FirstOrDefault(f => f.Name == name && f.IsPublic);
+        if (field != null) { assertions++; return field.FieldType; }
+    }
+    throw new Exception("Missing reflected public member: " + type.FullName + "." + name);
+}
+foreach (string mod in new[] { "SAIN", "ORBIT", "COMET" })
+{
+    string directory = Path.Combine(root, "BepInEx/plugins", mod);
+    string binary = Path.Combine(directory, mod + ".dll");
+    if (!File.Exists(binary)) continue;
+    resolver.AddSearchDirectory(directory);
+    using var optional = AssemblyDefinition.ReadAssembly(binary, parameters);
+    if (mod == "SAIN")
+    {
+        var bot = optional.MainModule.GetType("SAIN.Components.BotComponent");
+        PublicMember(PublicMember(bot, "Info").Resolve(), "Personality");
+        var decisions = PublicMember(bot, "Decision").Resolve();
+        foreach (string name in new[] { "CurrentSelfDecision", "CurrentCombatDecision", "CurrentSquadDecision" }) PublicMember(decisions, name);
+        PublicMember(bot, "CurrentAction"); PublicMember(bot, "ActiveLayer");
+        Check(PublicMember(optional.MainModule.GetType("SAIN.Components.BotManagerComponent"), "Bots").FullName.StartsWith("System.Collections.Generic.Dictionary`2<System.String,"),
+            "SAIN fallback roster supports profile-ID dictionary lookup");
+    }
+    else
+    {
+        var api = optional.MainModule.GetType(mod == "ORBIT" ? "Orbit.Api.OrbitTelemetry" : "Comet.Api.Decisions");
+        var names = mod == "ORBIT" ? new[] { "GetBotObjective", "IsBotDormant" } : new[] { "GetCurrentDecision", "GetCrossfireDecision", "GetPostCombatDecision" };
+        foreach (string name in names)
+        {
+            var method = api.Methods.Single(m => m.Name == name && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == "System.String");
+            Check(method.IsPublic && method.IsStatic, mod + " exposes " + name);
+            if (mod == "COMET") Check(method.ReturnType.FullName == "System.String", "COMET decision delegate signature");
+            else if (name == "IsBotDormant") Check(method.ReturnType.FullName == "System.Boolean", "ORBIT dormancy signature");
+            else { PublicMember(method.ReturnType.Resolve(), "Status"); PublicMember(method.ReturnType.Resolve(), "Category"); }
+        }
+    }
+}
 foreach (var member in plugin.MainModule.GetMemberReferences().Where(m => new[] { "Assembly-CSharp", "Terkoiz.Freecam", "BepInEx", "Comfort", "0Harmony" }.Contains(m.DeclaringType.GetElementType().Scope.Name)))
 {
     bool resolved = member switch { MethodReference m => m.Resolve() != null, FieldReference f => f.Resolve() != null, _ => true };

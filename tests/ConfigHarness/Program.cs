@@ -27,7 +27,14 @@ try
     var fresh = new SpectatorSettings(new ConfigFile(path, false));
     Check(fresh.Enabled.Value && fresh.AfterDeath.Value && fresh.AfterExtraction.Value, "Fresh install continues after death and extraction");
     Check(fresh.Targets.Value == BotFilter.PmcOnly && fresh.CycleBots.Value && !fresh.ReverseWheel.Value, "PMC-only wheel navigation by default");
-    Check(fresh.VisitDistance.Value == 2.5f && !fresh.AutoBotDebug.Value && fresh.ShowHelp.Value, "Default camera/help preferences and BotDebug OFF");
+    Check(fresh.VisitDistance.Value == 2.5f && fresh.Overlay.Value != SpectatorOverlay.BotDebug && fresh.ShowHelp.Value, "Default camera/help preferences and BotDebug OFF");
+    Check(!fresh.AutoSwitchOnDeath.Value && !fresh.ShowBotList.Value && fresh.Overlay.Value == SpectatorOverlay.BotInfo, "Default detached camera on death, optional list OFF and HORIZON labels selected");
+    fresh.AutoSwitchOnDeath.Value = true; fresh.ShowBotList.Value = true;
+    fresh.Overlay.Value = SpectatorOverlay.Off;
+    fresh.BotListPosition.Value = new Vector2(.3f, .4f);
+    var displayReload = new SpectatorSettings(new ConfigFile(path, false));
+    Check(displayReload.AutoSwitchOnDeath.Value && displayReload.ShowBotList.Value && displayReload.Overlay.Value == SpectatorOverlay.Off, "Explicit list, overlay and death preferences survive restart");
+    Check(displayReload.BotListPosition.Value.x == .3f && displayReload.BotListPosition.Value.y == .4f, "Dragged list position persists independently");
     Check(fresh.MenuKey.Value.MainKey == KeyCode.Escape, "Escape opens spectator menu by default");
     Check(fresh.FollowKey.Value.MainKey == KeyCode.F && fresh.OrientationKey.Value.MainKey == KeyCode.R, "Independent follow and orientation keys");
     Check(fresh.AutomaticScale.Value && fresh.InterfaceScale.Value == 1f, "New and existing configs use resolution-aware UI scaling");
@@ -43,7 +50,7 @@ try
     fresh.AfterExtraction.Value = false;
     fresh.Targets.Value = BotFilter.AllBots;
     fresh.ReverseWheel.Value = true;
-    fresh.AutoBotDebug.Value = false;
+    fresh.Overlay.Value = SpectatorOverlay.BotInfo;
     fresh.ShowHelp.Value = false;
     fresh.VisitDistance.Value = 5f;
     var reload = new SpectatorSettings(new ConfigFile(path, false));
@@ -55,7 +62,7 @@ try
     Check(reload.InterfaceScale.Value == .75f, "Minimum interface scale bounded");
     Check(reload.HelpPosition.Value.x == .25f && reload.HelpPosition.Value.y == .75f && reload.MenuPosition.Value.x == .6f && reload.MenuPosition.Value.y == .2f, "Separate dragged panel positions survive restart");
     Check(reload.OrientationKey.Value.MainKey == KeyCode.F8, "Customized orientation key survives restart");
-    Check(!reload.AfterDeath.Value && !reload.AfterExtraction.Value && !reload.ShowHelp.Value && !reload.AutoBotDebug.Value, "Independent toggles survive restart");
+    Check(!reload.AfterDeath.Value && !reload.AfterExtraction.Value && !reload.ShowHelp.Value && reload.Overlay.Value == SpectatorOverlay.BotInfo, "Independent toggles survive restart");
     Check(reload.Targets.Value == BotFilter.AllBots && reload.ReverseWheel.Value && reload.VisitDistance.Value == 5f, "Navigation preferences survive restart");
     reload.VisitDistance.Value = 1000f;
     Check(reload.VisitDistance.Value == 10f, "Camera distance is bounded");
@@ -63,7 +70,7 @@ try
     File.WriteAllText(path, "[General]\nEnabled = false\nSpectate after extraction = false\nCycle PMCs with mouse wheel = false\nAutomatic BotDebug overlay = false\nSpectator menu = F7\n");
     var migrated = new SpectatorSettings(new ConfigFile(path, false));
     Check(migrated.AutomaticScale.Value && migrated.InterfaceScale.Value == 1 && migrated.ZoomKey.Value.MainKey == KeyCode.LeftControl, "Old config receives UI and zoom defaults without changing existing controls");
-    Check(!migrated.Enabled.Value && !migrated.AfterExtraction.Value && !migrated.CycleBots.Value && !migrated.AutoBotDebug.Value && migrated.MenuKey.Value.MainKey == KeyCode.F7, "Legacy preferences are kept when updating Raid Spectator");
+    Check(!migrated.Enabled.Value && !migrated.AfterExtraction.Value && !migrated.CycleBots.Value && migrated.Overlay.Value == SpectatorOverlay.BotInfo && migrated.MenuKey.Value.MainKey == KeyCode.F7, "Legacy preferences are kept when updating Raid Spectator");
     Check(!File.ReadAllText(path).Contains("Cycle PMCs with mouse wheel") && File.ReadAllText(path).Contains("Cycle bots with mouse wheel = false"), "Legacy wheel entry is replaced without conflicting duplicate");
     Check(!new SpectatorSettings(new ConfigFile(path, false)).CycleBots.Value, "Migration is idempotent");
     File.WriteAllText(path, "[General]\nCycle PMCs with mouse wheel = false\nCycle bots with mouse wheel = true\nCamera targets = AllBots\n");
@@ -82,7 +89,10 @@ try
     File.WriteAllText(oldPath, oldSettings);
     Check(SpectatorSettings.ImportLegacyConfig(horizonConfig), "First HORIZON launch imports the old GUID config");
     var imported = new SpectatorSettings(horizonConfig);
-    Check(!imported.Enabled.Value && !imported.AfterExtraction.Value && !imported.CycleBots.Value && imported.Targets.Value == BotFilter.AllBots && imported.AutoBotDebug.Value && imported.MenuKey.Value.MainKey == KeyCode.F7,
+    Check(imported.Overlay.Value == SpectatorOverlay.BotDebug, "Existing automatic BotDebug preference migrates into the exclusive selector");
+    imported.Overlay.Value = SpectatorOverlay.BotInfo;
+    Check(new SpectatorSettings(new ConfigFile(horizonPath, false)).Overlay.Value == SpectatorOverlay.BotInfo, "New overlay choice takes priority over old automatic BotDebug setting");
+    Check(!imported.Enabled.Value && !imported.AfterExtraction.Value && !imported.CycleBots.Value && imported.Targets.Value == BotFilter.AllBots && imported.MenuKey.Value.MainKey == KeyCode.F7,
         "GUID migration preserves user preferences and the old wheel key");
     Check(File.ReadAllText(oldPath) == oldSettings, "Original Raid Spectator config is preserved");
     imported.Targets.Value = BotFilter.PmcOnly;

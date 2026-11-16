@@ -34,12 +34,14 @@ namespace UnityEngine
         public bool activeInHierarchy => activeSelf && (transform.parent?.gameObject.activeInHierarchy ?? true);
         public void SetActive(bool value) => activeSelf = value;
         public Dictionary<Type, object> Components = new();
+        public object? GetComponent(Type type) => Components.GetValueOrDefault(type);
     }
     public class Component
     {
         public GameObject gameObject = new();
         public Transform transform => gameObject.transform;
         public T? GetComponent<T>() where T : class => gameObject.Components.GetValueOrDefault(typeof(T)) as T;
+        public object? GetComponent(Type type) => gameObject.GetComponent(type);
         public T[] GetComponentsInChildren<T>(bool inactive) => gameObject.Components.Values.OfType<T>().ToArray();
     }
     public class Behaviour : Component { public bool enabled = true; }
@@ -49,6 +51,8 @@ namespace UnityEngine
     {
         public static Camera main { get; set; } = new();
         public bool isActiveAndEnabled => enabled && gameObject.activeInHierarchy;
+        public Vector3 Projection = new(.5f, .5f, 1);
+        public Vector3 WorldToViewportPoint(Vector3 value) => Projection;
     }
     public class Collider : MonoBehaviour { }
     public class Renderer : MonoBehaviour { }
@@ -58,8 +62,9 @@ namespace UnityEngine
     {
         public const int DefaultRaycastLayers = -5;
         public static RaycastHit? Hit;
+        public static int Casts;
         public static bool Linecast(Vector3 a, Vector3 b, out RaycastHit hit, int mask, QueryTriggerInteraction q)
-        { hit = Hit ?? default; return Hit.HasValue; }
+        { Casts++; hit = Hit ?? default; return Hit.HasValue; }
     }
     public enum CursorLockMode { None, Locked, Confined }
     public static class Cursor { public static CursorLockMode lockState; public static bool visible; }
@@ -71,7 +76,14 @@ namespace EFT
     public class Settings { public WildSpawnType Role; }
     public class Info { public Settings Settings = new(); }
     public class Profile { public string Nickname = "test"; public Info Info = new(); }
-    public class Health { public bool IsAlive = true; }
+    public enum EBodyPart { Common }
+    public struct ValueStruct { public float Current, Maximum; }
+    public class Health
+    {
+        public bool IsAlive = true;
+        public int Reads;
+        public ValueStruct GetBodyPartHealth(EBodyPart part, bool rounded) { Reads++; return new() { Current = 350, Maximum = 440 }; }
+    }
     public class BifacialTransform
     {
         public UnityEngine.Transform Original;
@@ -82,7 +94,9 @@ namespace EFT
     }
     public interface IPlayer { string ProfileId { get; } }
     public class AIData { public BotOwner? BotOwner; }
-    public class BotOwner { public bool Active = true; }
+    public class BotGroup { public int Id; }
+    public class Brain { public string Layer = "", LastDecision = "simplePatrol"; public string ActiveLayerName() => Layer; }
+    public class BotOwner : UnityEngine.MonoBehaviour { public bool Active = true; public BotGroup? BotsGroup; public Brain Brain = new(); }
     public class Player : UnityEngine.MonoBehaviour, IPlayer
     {
         public EPointOfView PointOfView;
@@ -91,11 +105,12 @@ namespace EFT
         public Profile Profile = new();
         public string ProfileId { get; set; } = "local";
         public AIData AIData = new();
+        public EFT.InventoryLogic.Inventory? Inventory = new();
         public UnityEngine.Vector3 Position => gameObject.transform.position;
         public UnityEngine.Vector3 LookDirection = new(0, 0, 1);
         public BifacialTransform Transform => new(gameObject.transform);
     }
-    public class GameWorld
+    public class GameWorld : UnityEngine.MonoBehaviour
     {
         public List<Player> RegisteredPlayers = new(), AllAlivePlayersList = new();
         public void RegisterPlayer(Player p) { RegisteredPlayers.Add(p); AllAlivePlayersList.Add(p); }

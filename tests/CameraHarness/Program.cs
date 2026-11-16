@@ -246,8 +246,30 @@ navigator.ToggleFollow(world, bridge, 3);
 navigator.Follow(world, bridge, 3);
 Check(freecam.transform.position.z == 57, "A new spectator session restores configured distance instead of retaining temporary zoom");
 world.AllAlivePlayersList.Remove(pmcB);
-navigator.Follow(world, bridge, 3);
-Check(!navigator.Following, "Extracted bot cannot remain a follow target");
+pmcA.HealthController.IsAlive = true;
+previousPosition = freecam.transform.position;
+Check(navigator.Follow(world, bridge, 3) == FollowTransition.Detached && !navigator.Following && navigator.SelectedId == null, "Extracted bot detaches by default even with another living PMC");
+bridge.SetMenu(false, navigator.Following);
+Check(freecam.IsActive && freecam.transform.position.Equals(previousPosition), "Detached Freecam resumes without teleporting");
+world.AllAlivePlayersList.Add(pmcB);
+navigator.Visit(world, bridge, pmcB, 3);
+navigator.ToggleFollow(world, bridge, 3);
+pmcB.HealthController.IsAlive = false;
+previousPosition = freecam.transform.position;
+Check(navigator.Follow(world, bridge, 3) == FollowTransition.Detached && freecam.transform.position.Equals(previousPosition), "Death preserves camera position and releases follow by default");
+navigator.Visit(world, bridge, pmcA, 3); navigator.ToggleFollow(world, bridge, 3);
+pmcB.HealthController.IsAlive = true; pmcA.HealthController.IsAlive = false;
+Check(navigator.Follow(world, bridge, 3, true) == FollowTransition.Switched && navigator.SelectedId == pmcB.ProfileId && navigator.Following, "Opt-in automatic switching follows the next living PMC");
+pmcB.HealthController.IsAlive = false; previousPosition = freecam.transform.position;
+Check(navigator.Follow(world, bridge, 3, true) == FollowTransition.Detached && freecam.transform.position.Equals(previousPosition), "Auto-switch with no candidates returns to stationary Freecam");
+var listScav = world.AllAlivePlayersList.First(p => p.ProfileId == "scav");
+Check(navigator.Visit(world, bridge, listScav, 3) && navigator.SelectedId == "scav", "Clicking a Scav works even with the wheel set to PMCs only");
+navigator.ToggleFollow(world, bridge, 3);
+Check(navigator.Following && navigator.SelectedId == "scav", "List selection becomes the manual follow target");
+listScav.gameObject.SetActive(false);
+Check(navigator.Follow(world, bridge, 3) == FollowTransition.Detached && !navigator.Visit(world, bridge, listScav, 3), "Inactive/despawned list target cannot be visited or followed");
+listScav.gameObject.SetActive(true);
+Check(!navigator.Visit(world, bridge, pmcA, 3), "Dead row cannot teleport the camera between roster refreshes");
 Check(local.Position.Equals(localPosition), "Follow and orbit never move the player body");
 navigator.SetFilter(BotFilter.AllBots);
 navigator.Reset();
@@ -372,6 +394,7 @@ catch (InvalidOperationException) { count++; }
 try { BotDebugHooks.DistanceTranspiler(new[] { transformCall }).ToArray(); throw new Exception("Incomplete position chain accepted"); }
 catch (InvalidOperationException) { count++; }
 
+BotInfoTests.Run(Check);
 Console.WriteLine($"PASS: {count} production camera/overlay checks with Unity doubles (not a rendered raid).");
 
 public static class FakeKillcamPlugin { public static FakeKillcamController? ReplayCtrl; }

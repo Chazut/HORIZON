@@ -5,6 +5,8 @@ using UnityEngine;
 
 namespace Horizon;
 
+internal enum FollowTransition { None, Detached, Switched }
+
 internal sealed class PmcNavigator
 {
     private readonly PmcCycle _cycle = new();
@@ -15,6 +17,7 @@ internal sealed class PmcNavigator
     private Player? _target;
     public bool Following { get; private set; }
     public bool LockOrientation { get; private set; } = true;
+    public string? SelectedId => _target != null ? _target.ProfileId : null;
     private float _yaw, _pitch;
     private float _configuredDistance = float.NaN, _distance;
 
@@ -60,12 +63,39 @@ internal sealed class PmcNavigator
     private bool TargetAlive(GameWorld world) => _target != null && _target.HealthController?.IsAlive == true &&
         _target.gameObject.activeInHierarchy && world.AllAlivePlayersList.Contains(_target);
 
-    public void Follow(GameWorld world, FreecamBridge camera, float distance)
+    public FollowTransition Follow(GameWorld world, FreecamBridge camera, float distance, bool autoSwitch = false)
     {
-        if (!Following) return;
-        if (!TargetAlive(world)) Move(world, camera, 1, distance);
-        if (!TargetAlive(world)) { Following = false; return; }
+        if ((Following || !ReferenceEquals(_target, null)) && !TargetAlive(world))
+        {
+            bool wasFollowing = Following;
+            _target = null;
+            if (wasFollowing && autoSwitch)
+            {
+                Move(world, camera, 1, distance);
+                if (TargetAlive(world)) return FollowTransition.Switched;
+            }
+            Following = false;
+            Caption = "Target lost | Free camera";
+            return wasFollowing ? FollowTransition.Detached : FollowTransition.None;
+        }
+        if (!Following || _target == null) return FollowTransition.None;
         Place(camera, _target!, distance);
+        return FollowTransition.None;
+    }
+
+    internal static bool IsLivingBot(Player player) => player != null && player.IsAI && !player.IsYourPlayer &&
+        player.HealthController?.IsAlive == true && player.gameObject.activeInHierarchy && !string.IsNullOrEmpty(player.ProfileId);
+
+    // The list deliberately includes all bot types, independently of the wheel filter.
+    public bool Visit(GameWorld world, FreecamBridge camera, Player target, float distance)
+    {
+        if (!IsLivingBot(target) || !world.AllAlivePlayersList.Contains(target)) return false;
+        _target = target;
+        _cycle.Select(target.ProfileId);
+        SeedOrbit(target);
+        Place(camera, target, distance);
+        Caption = target.Profile.Nickname;
+        return true;
     }
 
     public void SetFilter(BotFilter filter)
@@ -81,8 +111,7 @@ internal sealed class PmcNavigator
         _players.Clear();
         foreach (var player in world.AllAlivePlayersList)
         {
-            if (player == null || !player.IsAI || player.IsYourPlayer || player.HealthController?.IsAlive != true ||
-                !player.gameObject.activeInHierarchy) continue;
+            if (!IsLivingBot(player)) continue;
             var role = player.Profile?.Info?.Settings?.Role;
             if (_filter != BotFilter.AllBots && role != WildSpawnType.pmcBEAR && role != WildSpawnType.pmcUSEC) continue;
             if (string.IsNullOrEmpty(player.ProfileId)) continue;

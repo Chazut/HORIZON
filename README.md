@@ -18,9 +18,12 @@ Keep watching your solo SPT raid after death or extraction. Fly freely around th
 - Continue after death, extraction, or both.
 - Use the mouse wheel to jump between **PMCs only** or **all living bots**.
 - Follow a bot, either looking in its direction or orbiting around it with the mouse.
+- When it dies or extracts, stay where you are in Freecam. Automatic switching is optional and OFF by default.
 - Drag the spectator panels and watch without lingering player injury or flash effects.
 - Scale the interface for your monitor, automatically or manually, and zoom with Ctrl + mouse wheel.
-- Optionally show BotDebug's overlay. OFF by default; requires BotDebug.
+- Show information above visible bots: name, type, health, SAIN personality, carried value and current action. Supports SAIN, ORBIT, COMET, QuestingBots and LootingBots when installed.
+- Optionally open a list of living bots grouped and colored by squad, then click to visit. OFF by default.
+- Choose HORIZON labels, BotDebug's overlay or neither. BotDebug remains optional and is never enabled by default.
 - Wait for Killcam to finish, if installed.
 - Keep your original raid result, loot and play time. Spectating adds no survival time.
 
@@ -41,6 +44,10 @@ ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectato
 ## Controls
 
 Use Freecam's usual movement controls. **Mouse wheel** visits bots; **Escape** opens the spectator menu, where you can change the bot filter, toggle BotDebug or choose **Leave raid** to save and exit.
+
+Choose **Bot info** in the menu for HORIZON labels, or **BotDebug** if you prefer its overlay. Labels only appear for visible bots within the configured distance (150 m by default). Carried value estimates the entire equipped inventory, including gear and item stacks, using handbook prices. It is refreshed every five seconds; it is not profit earned during the raid. No Raid Review installation is needed.
+
+Enable **Show bot list** in the menu or F12. Hold **Left Alt** or open **Escape**, then click a bot to move the camera or drag the list by its title. The list includes all living bot types regardless of your mouse-wheel filter. A click preserves follow mode if it was already enabled.
 
 **F** attaches/detaches the camera. **R** switches between the bot's viewing direction and free mouse orbit. Both keys, mouse sensitivity and camera distance are configurable in F12. Hold **Left Alt** to drag the help panel by its title; drag the menu by its title while it is open. Their positions are saved.
 

@@ -15,6 +15,7 @@ try {
     $pluginDir = Join-Path $stage 'BepInEx/plugins/HORIZON'
     New-Item -ItemType Directory -Path $pluginDir -Force | Out-Null
     Copy-Item -LiteralPath 'bin/Release/netstandard2.1/HORIZON.dll' -Destination $pluginDir
+    Copy-Item -LiteralPath 'THIRD-PARTY-NOTICES.txt' -Destination $pluginDir
     $zip = Join-Path $PSScriptRoot "artifacts/HORIZON-$version.zip"
     Compress-Archive -LiteralPath (Join-Path $stage 'BepInEx') -DestinationPath $zip -Force
     Get-FileHash -LiteralPath $zip -Algorithm SHA256

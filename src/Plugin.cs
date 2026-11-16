@@ -20,7 +20,7 @@ namespace Horizon;
 [BepInDependency(BotDebugBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInIncompatibility("com.fika.core")]
 [BepInIncompatibility("com.chazut.raidspectator")]
-public sealed class Plugin : BaseUnityPlugin
+public sealed partial class Plugin : BaseUnityPlugin
 {
     public const string Id = "com.chazut.horizon";
     private static Plugin? _instance;
@@ -43,7 +43,12 @@ public sealed class Plugin : BaseUnityPlugin
     private GameWorld? _world;
     private FieldInfo _sessionStart = null!;
     private Func<bool>? _configurationVisible;
-    private bool _menuOpen, _preparedEnd, _quitting, _cameraActive, _lastAutoBotDebug, _botDebugReady;
+    private bool _menuOpen, _preparedEnd, _quitting, _cameraActive, _botDebugReady, _integrationsBound;
+    private readonly BotRoster _roster = new();
+    private readonly OverlaySelection _overlay = new();
+    private SpectatorOverlay _lastOverlay;
+    private OptionalBotData _botData = null!;
+    private BotLabels _labels = null!;
     private bool CameraWatching => _session.Watching && _cameraActive;
     private bool Extracted => _session.Extracted && _player != null;
     private ExitStatus SavedResult => _session.Outcome == WatchOutcome.Survived ? ExitStatus.Survived :
@@ -75,6 +80,8 @@ public sealed class Plugin : BaseUnityPlugin
             Logger.LogWarning($"Could not import Raid Spectator settings; original file preserved: {e.Message}");
         }
         _settings = new SpectatorSettings(Config);
+        _botData = new OptionalBotData(_physicsWarning);
+        _labels = new BotLabels(_botData, _physicsWarning);
         if (Chainloader.PluginInfos.ContainsKey("com.fika.core"))
         {
             Logger.LogError("Fika is incompatible with HORIZON. No patches applied.");
@@ -231,12 +238,10 @@ public sealed class Plugin : BaseUnityPlugin
             _cameraActive = true;
             _botDebugView.Attach(_world!, _player!, _camera.Camera!);
             _camera.SetMenu(false);
-            _lastAutoBotDebug = _settings.AutoBotDebug.Value;
-            if (_botDebugReady)
-            {
-                _botDebug.BeginSession();
-                if (_lastAutoBotDebug) SetBotDebug(true);
-            }
+            BindBotInformation();
+            if (_botDebugReady) _botDebug.BeginSession();
+            _lastOverlay = _settings.Overlay.Value;
+            ApplyOverlay(_lastOverlay);
             Logger.LogInfo($"Freecam active after {(_session.Extracted ? "extraction" : loggedWait ? "Killcam" : "death callbacks")}. Targets={_settings.Targets.Value}, wheel={_settings.CycleBots.Value}, BotDebug={_botDebugReady && _botDebug.Enabled}. Escape: spectator menu.");
         }
         catch (Exception e) { Logger.LogError($"Could not take over the spectator camera: {e}"); LeaveRaid("camera-error"); }
@@ -298,20 +303,29 @@ public sealed class Plugin : BaseUnityPlugin
                 else _camera.Zoom(wheel, _settings.ZoomSpeed.Value);
             }
         }
-        // A menu/F12 BotDebug toggle must not be undone on the next frame.
-        // Only an explicit change to the automatic preference applies it again.
-        if (_settings.AutoBotDebug.Value != _lastAutoBotDebug)
+        // A manual BotDebug toggle remains active until the overlay choice changes.
+        if (_settings.Overlay.Value != _lastOverlay)
         {
-            _lastAutoBotDebug = _settings.AutoBotDebug.Value;
-            SetBotDebug(_lastAutoBotDebug);
+            _lastOverlay = _settings.Overlay.Value;
+            ApplyOverlay(_lastOverlay);
         }
+        if (_botDebugReady) _overlay.ObserveBotDebug(_botDebug.Enabled);
+        if (_settings.ShowBotList.Value || _overlay.Mode == SpectatorOverlay.BotInfo)
+            _roster.Refresh(world, Time.unscaledTime);
+        if (_overlay.Mode == SpectatorOverlay.BotInfo && _camera.Camera != null)
+            _labels.Update(_roster, world, _camera.Camera, Time.unscaledTime, _settings.LabelDistance.Value);
     }
 
     private void LateUpdate()
     {
         if (!CameraWatching) return;
         _camera.MaintainEffects();
-        if (_world != null) _navigator.Follow(_world, _camera, _settings.VisitDistance.Value);
+        if (_world != null)
+        {
+            var transition = _navigator.Follow(_world, _camera, _settings.VisitDistance.Value, _settings.AutoSwitchOnDeath.Value);
+            if (transition != FollowTransition.None)
+                Logger.LogInfo($"Follow target lost: {transition}, autoSwitch={_settings.AutoSwitchOnDeath.Value}, target={_navigator.Caption}.");
+        }
         _camera.SetMenu(CameraMenu, _navigator.Following);
     }
 
@@ -362,6 +376,11 @@ public sealed class Plugin : BaseUnityPlugin
         try { _extractedPlayer.Release(rollback); }
         catch (Exception e) { Logger.LogWarning($"Extracted player cleanup: {e.Message}"); }
         _navigator.Reset();
+        _roster.Clear();
+        _labels?.Clear();
+        _botData?.Clear();
+        _listPanel.Reset();
+        _listScroll = Vector2.zero;
         _botDebugView.Clear();
         _physics.Reset();
         _physicsDiagnostics.Reset();
@@ -528,7 +547,7 @@ public sealed class Plugin : BaseUnityPlugin
 
     private void OnGUI()
     {
-        if (!CameraWatching || ConfigurationIsOpen() || (!_menuOpen && !_settings.ShowHelp.Value)) return;
+        if (!CameraWatching || ConfigurationIsOpen()) return;
         float scale = SpectatorInterface.Scale(Screen.height, _settings.AutomaticScale.Value, _settings.InterfaceScale.Value);
         if (_titleStyle == null || _interfaceScale != scale)
         {
@@ -536,9 +555,15 @@ public sealed class Plugin : BaseUnityPlugin
             _titleStyle = ScaledStyle(GUI.skin.label, scale, 17); _titleStyle.fontStyle = FontStyle.Bold;
             _textStyle = ScaledStyle(GUI.skin.label, scale, 13); _textStyle.wordWrap = true;
             _buttonStyle = ScaledStyle(GUI.skin.button, scale, 14);
+            _buttonStyle.richText = false;
             _toggleStyle = ScaledStyle(GUI.skin.toggle, scale, 13); _toggleStyle.wordWrap = true;
             _verticalScrollbar = ScaledStyle(GUI.skin.verticalScrollbar, scale);
             _horizontalScrollbar = ScaledStyle(GUI.skin.horizontalScrollbar, scale);
+            _labelStyle = ScaledStyle(GUI.skin.label, scale, 13);
+            _labelStyle.wordWrap = true;
+            _labelStyle.richText = false;
+            _labelStyle.normal.textColor = Color.white;
+            _listPanel.Reset();
             if (_dragControl != 0 && GUIUtility.hotControl == _dragControl) GUIUtility.hotControl = 0;
             _dragControl = 0; _dragPosition = null;
         }
@@ -548,6 +573,10 @@ public sealed class Plugin : BaseUnityPlugin
             _panelTexture.SetPixel(0, 0, new Color(0.055f, 0.07f, 0.09f, 0.94f));
             _panelTexture.Apply();
         }
+        if (_overlay.Mode == SpectatorOverlay.BotInfo) DrawBotLabels(scale);
+        if (_settings.ShowBotList.Value) DrawBotList(scale);
+        else _listPanel.Reset();
+        if (!_menuOpen && !_settings.ShowHelp.Value) return;
         float marginX = 16 * scale, marginY = 20 * scale;
         float width = Mathf.Max(1, Mathf.Min((_menuOpen ? 400 : 330) * scale, Screen.width - marginX * 2));
         float height = Mathf.Max(1, Mathf.Min((_menuOpen ? 660 : 185) * scale, Screen.height - marginY * 2));
@@ -607,6 +636,7 @@ public sealed class Plugin : BaseUnityPlugin
             if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: toggle orientation / mouse orbit", _textStyle);
             GUILayout.Label($"{_settings.FollowKey.Value}: follow / free camera. Drag the title to move this menu.", _textStyle);
             _settings.CycleBots.Value = GUILayout.Toggle(_settings.CycleBots.Value, "Switch bots with the mouse wheel", _toggleStyle);
+            _settings.AutoSwitchOnDeath.Value = GUILayout.Toggle(_settings.AutoSwitchOnDeath.Value, "Auto-switch when followed bot dies", _toggleStyle);
             GUILayout.Label(ZoomHint, _textStyle);
             GUILayout.Space(10 * scale);
             GUILayout.Label("Interface size", _titleStyle);
@@ -618,12 +648,21 @@ public sealed class Plugin : BaseUnityPlugin
             GUILayout.EndHorizontal();
             if (GUILayout.Button("Reset interface size", _buttonStyle, GUILayout.Height(30 * scale))) { _settings.AutomaticScale.Value = true; _settings.InterfaceScale.Value = 1; }
             GUILayout.Space(10 * scale);
-            if (_botDebugReady)
+            GUILayout.Label("Bot overlay", _titleStyle);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.Off ? "[Off]" : "Off", _buttonStyle)) ChooseOverlay(SpectatorOverlay.Off);
+            if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotInfo ? "[Bot info]" : "Bot info", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotInfo);
+            bool oldEnabled = GUI.enabled;
+            GUI.enabled = oldEnabled && _botDebugReady;
+            if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotDebug ? "[BotDebug]" : "BotDebug", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotDebug);
+            GUI.enabled = oldEnabled;
+            GUILayout.EndHorizontal();
+            if (!_botDebugReady) GUILayout.Label(_botDebugStatus, _textStyle);
+            if (_overlay.Mode == SpectatorOverlay.BotInfo)
             {
-                bool overlay = GUILayout.Toggle(_botDebug.Enabled, "BotDebug overlay (this raid)", _toggleStyle);
-                if (overlay != _botDebug.Enabled) SetBotDebug(overlay);
+                GUILayout.Label("Visible bots: name, health, personality, carried value and current action.", _textStyle);
             }
-            else GUILayout.Label(_botDebugStatus, _textStyle);
+            _settings.ShowBotList.Value = GUILayout.Toggle(_settings.ShowBotList.Value, "Show bot list (click to visit)", _toggleStyle);
             _settings.ShowHelp.Value = GUILayout.Toggle(_settings.ShowHelp.Value, "Show help while moving the camera", _toggleStyle);
             GUILayout.Label("More settings: F12 > HORIZON. Movement: Freecam controls.", _textStyle);
             GUILayout.EndScrollView();

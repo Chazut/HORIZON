@@ -3,6 +3,7 @@
   <ItemGroup>
     <Compile Include="../../src/SpectatorSettings.cs" Link="Production/SpectatorSettings.cs" />
     <Compile Include="../../src/BotFilter.cs" Link="Production/BotFilter.cs" />
+    <Compile Include="../../src/SpectatorOverlay.cs" Link="Production/SpectatorOverlay.cs" />
     <Reference Include="BepInEx" HintPath="C:/Games/SPT-4.1/BepInEx/core/BepInEx.dll" />
     <Reference Include="UnityEngine" HintPath="C:/Games/SPT-4.1/EscapeFromTarkov_Data/Managed/UnityEngine.dll" />
     <Reference Include="UnityEngine.CoreModule" HintPath="C:/Games/SPT-4.1/EscapeFromTarkov_Data/Managed/UnityEngine.CoreModule.dll" />

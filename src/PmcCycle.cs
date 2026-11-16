@@ -6,6 +6,7 @@ namespace Horizon;
 internal sealed class PmcCycle
 {
     public string? SelectedId { get; private set; }
+    public void Select(string id) => SelectedId = id;
     // IDs are sorted, so spawn-list reordering does not change the cycle direction.
     public string? Next(List<string> ids, int direction)
     {
