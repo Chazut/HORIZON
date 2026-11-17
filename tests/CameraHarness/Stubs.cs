@@ -95,7 +95,13 @@ namespace EFT
     public interface IPlayer { string ProfileId { get; } }
     public class AIData { public BotOwner? BotOwner; }
     public class BotGroup { public int Id; }
-    public class Brain { public string Layer = "", LastDecision = "simplePatrol"; public string ActiveLayerName() => Layer; }
+    public class Brain
+    {
+        public string Layer = "", LastDecision = "simplePatrol";
+        public bool ThrowLayer;
+        public object? Agent = new();
+        public string ActiveLayerName() => ThrowLayer || Agent == null ? throw new NullReferenceException("Native layer is transitioning") : Layer;
+    }
     public class BotOwner : UnityEngine.MonoBehaviour { public bool Active = true; public BotGroup? BotsGroup; public Brain Brain = new(); }
     public class Player : UnityEngine.MonoBehaviour, IPlayer
     {

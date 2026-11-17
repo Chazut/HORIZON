@@ -101,9 +101,25 @@ internal static class BotInfoTests
         a.AIData.BotOwner.Brain.Layer = "OrbitBrainLayer";
         OrbitApi.Throw = true; int reads = OrbitApi.Reads;
         data.ReadBot(a, world); data.ReadBot(a, world);
-        check(warnings.Count == 1 && OrbitApi.Reads == reads + 1, "Broken integration fails independently and warns once, without repeated exceptions");
-        OrbitApi.Throw = false; data.Clear();
-        check(data.ReadBot(a, world).action == "Orbit: Squad Cover", "New raid can rebind transient integration reads");
+        check(warnings.Count == 1 && OrbitApi.Reads == reads + 2, "Transient integration failures warn once but remain eligible for the next bounded refresh");
+        OrbitApi.Throw = false;
+        check(data.ReadBot(a, world).action == "Orbit: Squad Cover", "Transient objective reads recover in the same raid without clearing the overlay");
+        b.AIData.BotOwner!.Brain.Layer = "COMET : Recover magazine";
+        b.AIData.BotOwner.Brain.LastDecision = "180";
+        a.AIData.BotOwner.Brain.LastDecision = "181";
+        a.AIData.BotOwner.Brain.ThrowLayer = true;
+        check(data.ReadBot(a, world).action == "Action unavailable", "A missing native layer does not invent an action for that sample");
+        check(data.ReadBot(b, world).action == "COMET: Recover Magazine", "One bot's native layer exception cannot disable action reads for other bots");
+        data.ReadBot(a, world);
+        check(warnings.Count == 2, "Repeated native layer errors are logged only once per raid");
+        a.AIData.BotOwner.Brain.ThrowLayer = false;
+        check(data.ReadBot(a, world).action == "Orbit: Squad Cover", "The same bot resumes objective display after its native layer recovers");
+        a.AIData.BotOwner.Brain.Agent = null;
+        check(data.ReadBot(a, world).action == "Action unavailable" && warnings.Count == 2, "An absent native brain agent is a normal unavailable sample, without an exception");
+        a.AIData.BotOwner.Brain.Agent = new();
+        a.AIData.BotOwner.Brain.Layer = "SAIN : Combat Layer";
+        check(data.ReadBot(a, world).action == "COMET: Reload", "Combat action ownership still resolves after a transient layer error");
+        data.Clear();
 
         var overlay = new OverlaySelection();
         overlay.Select(SpectatorOverlay.BotInfo, false);

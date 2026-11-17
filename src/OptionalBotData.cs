@@ -74,11 +74,13 @@ internal sealed class OptionalBotData
 
     private T Read<T>(string integration, Func<T> read, T fallback)
     {
-        if (_warnings.Contains(integration)) return fallback;
+        // A bot can temporarily lose its native layer during a transition. Suppress
+        // duplicate warnings, not future reads or the actions of unrelated bots.
+        // BotLabels already bounds refresh frequency and the number of reads per frame.
         try { return read(); }
         catch (Exception e)
         {
-            if (_warnings.Add(integration)) _warning($"Bot labels: {integration} data unavailable: {e.GetBaseException().Message}. Other information remains available.");
+            if (_warnings.Add(integration)) _warning($"Bot labels: {integration} data unavailable for this sample: {e.GetBaseException().Message}. Retrying on the next refresh; other bots remain readable.");
             return fallback;
         }
     }
@@ -88,7 +90,7 @@ internal sealed class OptionalBotData
     public (string personality, string action, bool ghost) ReadBot(Player player, GameWorld world)
     {
         var owner = player.AIData?.BotOwner;
-        string layer = Read("native layer", () => owner?.Brain?.ActiveLayerName() ?? "", "");
+        string layer = Read("native layer", () => owner?.Brain?.Agent == null ? "" : owner.Brain.ActiveLayerName(), "");
         string native = Read("native decision", () => owner?.Brain?.LastDecision.ToString() ?? "", "");
         bool ghost = Read("ORBIT Ghost", () => _orbitDormant?.Invoke(null, new object[] { player.ProfileId }) is true, false);
         object? sain = Read<object?>("SAIN component", () =>
