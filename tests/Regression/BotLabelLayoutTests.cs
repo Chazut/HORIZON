@@ -5,12 +5,34 @@ internal static class BotLabelLayoutTests
 {
     public static void Run(Action<bool, string> check)
     {
+        var frame = new Rect(100, 100, 200, 60);
+        check(BotLabelLayout.ConnectorEnd(frame, new Vector2(200, 210)) == new Vector2(200, 160),
+            "A head below the caption joins its bottom border");
+        check(BotLabelLayout.ConnectorEnd(frame, new Vector2(35, 15)) == frame.min,
+            "A diagonally displaced caption joins the nearest corner");
+        check(BotLabelLayout.ConnectorEnd(frame, new Vector2(295, 130)) == new Vector2(300, 130),
+            "An on-screen caption surrounding the marker still joins the nearest frame edge");
+
         foreach (var screen in new[] { new Vector2(3440, 1440), new Vector2(3840, 2160), new Vector2(1920, 1080) })
         {
             var layout = new BotLabelLayout();
             float scale = SpectatorInterface.Scale((int)screen.y, true, 1);
             var size = new Vector2(220, 66) * scale;
-            float gap = 8 * scale;
+            float gap = 12 * scale;
+            foreach (bool vertical in new[] { false, true })
+            foreach (float length in new[] { gap, size.x, size.y, 505 * scale })
+            {
+                Rect uv = BotLabelLayout.DashUV(length, scale, vertical);
+                float phase = vertical ? uv.y : uv.x;
+                float repeats = vertical ? uv.height : uv.width;
+                bool Ink(float t) => (phase + t * repeats) % 1 < .5f;
+                check(Ink(0) && Ink(1) && !Ink(.5f / repeats),
+                    "Repeated strokes have ink at both ends and a transparent gap in each period");
+                check((vertical ? uv.xMin : uv.yMin) >= 0 && (vertical ? uv.xMax : uv.yMax) < .5f,
+                    "Stroke thickness samples only the texture row or column carrying the dash pattern");
+                check(Math.Abs(length / repeats / scale - 6) < 1,
+                    "UI scaling keeps a consistent dash length on borders and connectors");
+            }
             var head = screen / 2;
             var first = layout.Add(head, size, screen, gap, "First", Color.white);
             check(Math.Abs(first.center.x - head.x) < .01f && Math.Abs(first.yMax + gap - head.y) < .01f,

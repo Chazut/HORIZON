@@ -8,6 +8,7 @@ public sealed partial class Plugin
     private Vector2 _listScroll;
     private GUIStyle? _labelStyle;
     private GUIStyle? _labelOutlineStyle;
+    private Texture2D? _labelDashes;
     private readonly GUIContent _labelContent = new();
     private readonly GUIContent _rowContent = new();
     private readonly BotLabelLayout _labelLayout = new();
@@ -72,6 +73,17 @@ public sealed partial class Plugin
         if (Event.current.type != EventType.Repaint || _camera.Camera == null || _labelStyle == null) return;
         var screen = new Vector2(Screen.width, Screen.height);
         if (screen.x <= 20 * scale + 16 || screen.y <= 12 * scale + 16) return;
+        if (_labelDashes == null)
+        {
+            // Sample one row or column of a repeating checker for each stroke.
+            _labelDashes = new Texture2D(2, 2, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Point
+            };
+            _labelDashes.SetPixels(new[] { Color.white, Color.clear, Color.clear, Color.white });
+            _labelDashes.Apply(false, true);
+        }
         int depth = GUI.depth;
         var color = GUI.color;
         GUI.depth = -90;
@@ -86,8 +98,8 @@ public sealed partial class Plugin
             float height = _labelStyle.CalcHeight(_labelContent, width - 20 * scale) + 12 * scale;
             var head = new Vector2(point.x * screen.x, (1 - point.y) * screen.y);
             var tint = BotColor(bot);
-            var rect = _labelLayout.Add(head, new Vector2(width, height), screen, 8 * scale, bot.Label, tint);
-            DrawLabelAnchor(head, rect, tint, scale);
+            var rect = _labelLayout.Add(head, new Vector2(width, height), screen, 12 * scale, bot.Label, tint);
+            DrawLabelGuide(head, rect, tint, scale, _labelDashes);
         }
         // Draw all captions over the connectors so a later line cannot cover earlier text.
         foreach (var label in _labelLayout.Labels)
@@ -107,17 +119,29 @@ public sealed partial class Plugin
         GUI.depth = depth;
     }
 
-    private static void DrawLabelAnchor(Vector2 head, Rect label, Color tint, float scale)
+    private static void DrawLabelGuide(Vector2 head, Rect label, Color tint, float scale, Texture2D dashes)
     {
-        var delta = BotLabelLayout.NearestPoint(label, head) - head;
+        float stroke = Mathf.Max(1f, Mathf.Round(1.5f * scale));
+        GUI.color = tint;
+        var delta = BotLabelLayout.ConnectorEnd(label, head) - head;
         if (delta.sqrMagnitude > 1)
         {
+            float length = delta.magnitude;
             var matrix = GUI.matrix;
-            GUIUtility.RotateAroundPivot(Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, head);
-            GUI.color = new Color(tint.r, tint.g, tint.b, .65f);
-            GUI.DrawTexture(new Rect(head.x, head.y - scale / 2, delta.magnitude, scale), Texture2D.whiteTexture);
-            GUI.matrix = matrix;
+            try
+            {
+                GUIUtility.RotateAroundPivot(Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, head);
+                GUI.DrawTextureWithTexCoords(new Rect(head.x, head.y - stroke / 2, length, stroke),
+                    dashes, BotLabelLayout.DashUV(length, scale, false));
+            }
+            finally { GUI.matrix = matrix; }
         }
+        var horizontal = BotLabelLayout.DashUV(label.width, scale, false);
+        var vertical = BotLabelLayout.DashUV(label.height, scale, true);
+        GUI.DrawTextureWithTexCoords(new Rect(label.xMin, label.yMin, label.width, stroke), dashes, horizontal);
+        GUI.DrawTextureWithTexCoords(new Rect(label.xMin, label.yMax - stroke, label.width, stroke), dashes, horizontal);
+        GUI.DrawTextureWithTexCoords(new Rect(label.xMin, label.yMin, stroke, label.height), dashes, vertical);
+        GUI.DrawTextureWithTexCoords(new Rect(label.xMax - stroke, label.yMin, stroke, label.height), dashes, vertical);
         GUI.color = Color.black;
         GUI.DrawTexture(new Rect(head.x - 3 * scale, head.y - 3 * scale, 6 * scale, 6 * scale), Texture2D.whiteTexture);
         GUI.color = tint;

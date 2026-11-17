@@ -699,6 +699,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         _harmony.UnpatchSelf();
         BotDebugHooks.Remove();
         if (_panelTexture != null) Destroy(_panelTexture);
+        if (_labelDashes != null) Destroy(_labelDashes);
         if (ReferenceEquals(_instance, this)) _instance = null;
     }
 }

@@ -94,6 +94,7 @@ namespace EFT
     }
     public interface IPlayer { string ProfileId { get; } }
     public class AIData { public BotOwner? BotOwner; }
+    public class PlayerBones { public BifacialTransform? Head; }
     public class BotGroup { public int Id; }
     public class Brain
     {
@@ -111,6 +112,7 @@ namespace EFT
         public Profile Profile = new();
         public string ProfileId { get; set; } = "local";
         public AIData AIData = new();
+        public PlayerBones? PlayerBones;
         public EFT.InventoryLogic.Inventory? Inventory = new();
         public UnityEngine.Vector3 Position => gameObject.transform.position;
         public UnityEngine.Vector3 LookDirection = new(0, 0, 1);

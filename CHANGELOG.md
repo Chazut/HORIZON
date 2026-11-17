@@ -3,7 +3,7 @@
 - Return to detached Freecam when the followed bot dies or extracts. Automatic switching is now optional and OFF by default.
 - Bot info is the default overlay, with transparent backgrounds and outlined text. Labels include health, SAIN personality, carried inventory value and current actions from SAIN, ORBIT, COMET, QuestingBots or LootingBots. Choose these labels, BotDebug or Off.
 - Labels show through scenery by default, with a toggle to require line of sight. Off-screen bots remain hidden.
-- When distant bots appear close together, a marker shows each bot's position and connects it to its label. Labels no longer stack down into the ground.
+- Each BotInfo label has a dashed frame and a matching dashed line to a marker above the bot's head. Crowded labels spread out above distant bots.
 - Optional draggable bot list, grouped and colored by squad, with click-to-visit camera controls. OFF by default.
 - Larger interface on high-resolution monitors, with automatic scaling and manual size controls in the spectator menu and F12.
 - Hold Left Ctrl and scroll to zoom without switching bots, in Freecam or while following. Shortcut and speed are configurable.

@@ -172,6 +172,20 @@ internal static class BotInfoTests
         camera.Projection = new(.5f, .5f, 1); a.transform.position = new(0, 0, 151);
         check(!BotLabels.InView(camera, a, 150, out _), "Label distance limit applies to world distance");
         a.transform.position = new(0, 0, 2500);
+        var skull = new GameObject().transform;
+        a.PlayerBones = new() { Head = new BifacialTransform(skull) };
+        foreach (var offset in new[] { new Vector3(0, 1.65f, 0), new Vector3(.2f, 1f, 0), new Vector3(0, .25f, .8f) })
+        {
+            skull.position = a.Position + offset;
+            var expected = skull.position + Vector3.up * .22f;
+            check((BotLabels.Anchor(a) - expected).sqrMagnitude < .0001f, "The marker follows the head above standing, crouched and prone bots");
+        }
+        skull.position = new Vector3(0, 1.65f, 12);
+        check((BotLabels.Anchor(a) - (a.Position + Vector3.up * 1.8f)).sqrMagnitude < .0001f,
+            "A distant bot with a stale skeleton keeps its own world anchor");
+        a.PlayerBones = null;
+        check((BotLabels.Anchor(a) - (a.Position + Vector3.up * 1.8f)).sqrMagnitude < .0001f,
+            "A bot without a loaded skeleton still has a marker");
         check(BotLabels.InView(camera, a, 0, out _), "Unlimited labels include bots beyond the former 150m and 500m limits");
         for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 28, 0, true);
         check(alpha.Visible && alpha.Label.Contains("Alpha"), "Distant bot information is collected, not just projected");

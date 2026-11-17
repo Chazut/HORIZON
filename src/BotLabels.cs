@@ -17,7 +17,21 @@ internal sealed class BotLabels
     private bool _valueFailed;
     public BotLabels(OptionalBotData data, Action<string> warning) { _data = data; _warning = warning; }
 
-    public static Vector3 Anchor(Player player) => player.Position + Vector3.up * 1.8f;
+    public static Vector3 Anchor(Player player)
+    {
+        var root = player.Position;
+        var head = player.PlayerBones?.Head?.Original;
+        if (head != null)
+        {
+            var position = head.position;
+            var offset = position - root;
+            // A culled skeleton can still have a head transform at an old world position.
+            float distanceSquared = offset.sqrMagnitude;
+            if (offset.y >= 0 && distanceSquared > .01f && distanceSquared <= 9f)
+                return position + Vector3.up * .22f;
+        }
+        return root + Vector3.up * 1.8f;
+    }
 
     public static bool InView(Camera camera, Player player, float distance, out Vector3 viewport)
     {
@@ -48,7 +62,7 @@ internal sealed class BotLabels
             {
                 var player = bot.Player;
                 bot.Visible = PmcNavigator.IsLivingBot(player) && InView(camera, player, distance, out _) &&
-                    (showOccluded || ClearLine(camera, player, Anchor(player)) || ClearLine(camera, player, player.Position + Vector3.up));
+                    (showOccluded || ClearLine(camera, player, player.Position + Vector3.up * 1.8f) || ClearLine(camera, player, player.Position + Vector3.up));
                 if (bot.Visible)
                 {
                     var health = player.HealthController.GetBodyPartHealth(EBodyPart.Common, true);

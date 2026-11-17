@@ -53,6 +53,27 @@ internal sealed class BotLabelLayout
         return best;
     }
 
-    public static Vector2 NearestPoint(Rect rect, Vector2 head) =>
+    private static Vector2 NearestPoint(Rect rect, Vector2 head) =>
         new(Mathf.Clamp(head.x, rect.xMin, rect.xMax), Mathf.Clamp(head.y, rect.yMin, rect.yMax));
+
+    public static Vector2 ConnectorEnd(Rect rect, Vector2 head)
+    {
+        var end = NearestPoint(rect, head);
+        // A label clamped to the screen edge can contain its own head marker.
+        if (rect.Contains(head))
+        {
+            float edgeX = head.x < rect.center.x ? rect.xMin : rect.xMax;
+            float edgeY = head.y < rect.center.y ? rect.yMin : rect.yMax;
+            if (Mathf.Abs(edgeX - head.x) < Mathf.Abs(edgeY - head.y)) end.x = edgeX;
+            else end.y = edgeY;
+        }
+        return end;
+    }
+
+    public static Rect DashUV(float length, float scale, bool vertical)
+    {
+        // Whole periods start and end on the opaque texel, including at every corner.
+        float periods = Mathf.Max(1, Mathf.RoundToInt(length / (6f * scale)));
+        return vertical ? new Rect(.125f, .25f, .25f, periods) : new Rect(.25f, .125f, periods, .25f);
+    }
 }
