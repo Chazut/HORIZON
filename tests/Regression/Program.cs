@@ -9,6 +9,7 @@ void Check(bool value, string name)
     assertions++;
 }
 
+BotLabelLayoutTests.Run(Check);
 Check(SpectatorInterface.Scale(1080, true, 1) == 1, "1080p preserves the original UI size");
 Check(SpectatorInterface.Scale(2160, true, 1) == 2, "4K doubles text, panels and controls");
 Check(Math.Abs(SpectatorInterface.Scale(1440, true, 1) - 4f / 3) < .001f, "1440p scales by height, including ultrawide");

@@ -12,6 +12,8 @@
     <Compile Include="../../src/SpectatorPhysics.cs" Link="Production/SpectatorPhysics.cs" />
     <Compile Include="../../src/SpectatorInterface.cs" Link="Production/SpectatorInterface.cs" />
     <Compile Include="../../src/SpectatorWheel.cs" Link="Production/SpectatorWheel.cs" />
+    <Compile Include="../../src/BotLabelLayout.cs" Link="Production/BotLabelLayout.cs" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(SptRoot)/EscapeFromTarkov_Data/Managed/UnityEngine.CoreModule.dll" />
     <Reference Include="Mono.Cecil" HintPath="$(SptRoot)/BepInEx/core/Mono.Cecil.dll" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Horizon;
@@ -11,7 +10,7 @@ public sealed partial class Plugin
     private GUIStyle? _labelOutlineStyle;
     private readonly GUIContent _labelContent = new();
     private readonly GUIContent _rowContent = new();
-    private readonly List<Rect> _drawnLabels = new();
+    private readonly BotLabelLayout _labelLayout = new();
     private static readonly Color[] SquadColors =
     {
         new(.32f, .86f, .81f), new(1f, .71f, .36f), new(.63f, .72f, 1f), new(.92f, .59f, .8f),
@@ -71,35 +70,58 @@ public sealed partial class Plugin
     private void DrawBotLabels(float scale)
     {
         if (Event.current.type != EventType.Repaint || _camera.Camera == null || _labelStyle == null) return;
+        var screen = new Vector2(Screen.width, Screen.height);
+        if (screen.x <= 20 * scale + 16 || screen.y <= 12 * scale + 16) return;
         int depth = GUI.depth;
         var color = GUI.color;
         GUI.depth = -90;
-        _drawnLabels.Clear();
+        _labelLayout.Labels.Clear();
         foreach (var bot in _roster.Bots)
         {
             if (!bot.Visible || !PmcNavigator.IsLivingBot(bot.Player) ||
                 !BotLabels.InView(_camera.Camera, bot.Player, _settings.EffectiveLabelDistance, out var point)) continue;
-            float width = Mathf.Min(310 * scale, Screen.width - 16);
             _labelContent.text = bot.Label;
+            float width = Mathf.Min(310 * scale, screen.x - 16);
+            width = Mathf.Min(width, Mathf.Ceil(_labelStyle.CalcSize(_labelContent).x) + 20 * scale);
             float height = _labelStyle.CalcHeight(_labelContent, width - 20 * scale) + 12 * scale;
-            var rect = new Rect(Mathf.Clamp(point.x * Screen.width - width / 2, 8, Screen.width - width - 8),
-                Mathf.Clamp((1 - point.y) * Screen.height - height - 8 * scale, 8, Mathf.Max(8, Screen.height - height - 8)), width, height);
-            // Keep neighbouring squad members legible. Move overlapping labels when space allows.
-            foreach (var previous in _drawnLabels)
-                if (rect.Overlaps(previous) && previous.yMax + height + 4 < Screen.height)
-                    rect.y = previous.yMax + 4;
-            _drawnLabels.Add(rect);
+            var head = new Vector2(point.x * screen.x, (1 - point.y) * screen.y);
+            var tint = BotColor(bot);
+            var rect = _labelLayout.Add(head, new Vector2(width, height), screen, 8 * scale, bot.Label, tint);
+            DrawLabelAnchor(head, rect, tint, scale);
+        }
+        // Draw all captions over the connectors so a later line cannot cover earlier text.
+        foreach (var label in _labelLayout.Labels)
+        {
+            var rect = label.Bounds;
+            _labelContent.text = label.Text;
             GUI.color = Color.white;
-            var textRect = new Rect(rect.x + 10 * scale, rect.y + 6 * scale, width - 20 * scale, height - 12 * scale);
+            var textRect = new Rect(rect.x + 10 * scale, rect.y + 6 * scale, rect.width - 20 * scale, rect.height - 12 * scale);
             float outline = Mathf.Max(1f, scale);
             for (int dx = -1; dx <= 1; dx += 2)
                 for (int dy = -1; dy <= 1; dy += 2)
                     GUI.Label(new Rect(textRect.x + dx * outline, textRect.y + dy * outline, textRect.width, textRect.height), _labelContent, _labelOutlineStyle);
-            GUI.color = BotColor(bot);
+            GUI.color = label.Tint;
             GUI.Label(textRect, _labelContent, _labelStyle);
         }
         GUI.color = color;
         GUI.depth = depth;
+    }
+
+    private static void DrawLabelAnchor(Vector2 head, Rect label, Color tint, float scale)
+    {
+        var delta = BotLabelLayout.NearestPoint(label, head) - head;
+        if (delta.sqrMagnitude > 1)
+        {
+            var matrix = GUI.matrix;
+            GUIUtility.RotateAroundPivot(Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, head);
+            GUI.color = new Color(tint.r, tint.g, tint.b, .65f);
+            GUI.DrawTexture(new Rect(head.x, head.y - scale / 2, delta.magnitude, scale), Texture2D.whiteTexture);
+            GUI.matrix = matrix;
+        }
+        GUI.color = Color.black;
+        GUI.DrawTexture(new Rect(head.x - 3 * scale, head.y - 3 * scale, 6 * scale, 6 * scale), Texture2D.whiteTexture);
+        GUI.color = tint;
+        GUI.DrawTexture(new Rect(head.x - 2 * scale, head.y - 2 * scale, 4 * scale, 4 * scale), Texture2D.whiteTexture);
     }
 
     private void DrawBotList(float scale)
