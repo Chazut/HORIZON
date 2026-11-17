@@ -19,6 +19,7 @@ internal sealed class SpectatorSettings
     public ConfigEntry<bool> AutoSwitchOnDeath { get; }
     public ConfigEntry<bool> ShowBotList { get; }
     public ConfigEntry<float> LabelDistance { get; }
+    public ConfigEntry<bool> ShowOccludedBots { get; }
     public ConfigEntry<Vector2> BotListPosition { get; }
     public ConfigEntry<KeyboardShortcut> MenuKey { get; }
     public ConfigEntry<KeyboardShortcut> FollowKey { get; }
@@ -62,11 +63,12 @@ internal sealed class SpectatorSettings
             VisitDistance = config.Bind("General", "Camera visit distance", 2.5f, new ConfigDescription("Distance in metres from a selected bot when visiting or following. Nearby walls shorten this distance.", new AcceptableValueRange<float>(1f, 10f)));
             ShowHelp = config.Bind("General", "Show spectator help", true, "Show the small HORIZON panel while moving the camera. The spectator menu remains accessible when hidden.");
             var oldOverlay = config.Bind("General", "Automatic BotDebug overlay", false);
-            Overlay = config.Bind("Interface", "Bot overlay", oldOverlay.Value ? SpectatorOverlay.BotDebug : SpectatorOverlay.BotInfo, "Choose HORIZON information labels, BotDebug (if installed), or Off. Only one overlay is displayed. HORIZON labels show visible living bots and use optional integrations when present. BotDebug is never enabled by default and is turned off when leaving, without changing its saved configuration.");
+            Overlay = config.Bind("Interface", "Bot overlay", SpectatorOverlay.BotInfo, "Choose HORIZON information labels (default), BotDebug (if installed), or Off. Only one overlay is displayed. Existing choices in this selector are preserved. BotDebug is turned off when leaving, without changing its saved configuration.");
             config.Remove(oldOverlay.Definition);
             AutoSwitchOnDeath = config.Bind("General", "Auto-switch when followed bot dies", false, "OFF: return to detached Freecam at the current camera position when the followed bot dies, extracts or disappears. ON: automatically follow the next living bot in the wheel filter.");
             ShowBotList = config.Bind("Interface", "Show bot list", false, "Show all living AI bots grouped by squad. Hold Left Alt or open the spectator menu to click a bot and move the camera. Independent of the wheel filter; no player body is moved.");
-            LabelDistance = config.Bind("Interface", "Bot label distance", 150f, new ConfigDescription("Maximum distance in metres for HORIZON labels. Only bots in the camera view with an unobstructed head or torso are labelled.", new AcceptableValueRange<float>(20f, 500f)));
+            LabelDistance = config.Bind("Interface", "Bot label distance", 150f, new ConfigDescription("Maximum distance in metres for HORIZON labels. Bots outside the camera view never receive a label.", new AcceptableValueRange<float>(20f, 500f)));
+            ShowOccludedBots = config.Bind("Interface", "Show bots through scenery", true, "Show Bot info through walls and scenery, like BotDebug. Disable to label only bots with an unobstructed head or torso. Bots outside the camera view remain hidden in both modes.");
             BotListPosition = config.Bind("Interface", "Bot list position", new Vector2(0f, 0f), "Saved relative position of the bot list. Hold Left Alt or open the menu, then drag its header.");
             MenuKey = config.Bind("General", "Spectator menu", new KeyboardShortcut(KeyCode.Escape), "Release the mouse and open camera controls, overlay options and Leave raid. Escape always works as a fallback. The raid keeps running while the menu is open.");
             FollowKey = config.Bind("General", "Follow selected bot", new KeyboardShortcut(KeyCode.F), "Toggle a camera following the selected bot. Scroll or use Next/Previous to switch targets. Press again to return to Freecam. Only active while spectating, outside menus.");

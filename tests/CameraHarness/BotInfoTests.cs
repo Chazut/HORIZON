@@ -136,11 +136,16 @@ internal static class BotInfoTests
         Physics.Hit = new RaycastHit { transform = new GameObject().transform };
         for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 23, 150);
         check(roster.Bots.All(x => !x.Visible), "Opaque occlusion hides labels behind walls");
+        int casts = Physics.Casts;
+        for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 23.6f, 150, true);
+        check(alpha.Visible && Physics.Casts == casts, "Through-scenery mode shows occluded bots without visibility raycasts");
+        for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 24.2f, 150, false);
+        check(!alpha.Visible, "Turning through-scenery mode off restores obstruction checks");
         Physics.Hit = new RaycastHit { transform = a.transform };
-        for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 24, 150);
+        for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 25, 150);
         check(alpha.Visible, "Hitting the target's own collider counts as visibility");
         Physics.Hit = null; camera.Projection = new(.5f, .5f, -1);
-        for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 25, 150);
+        for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 26, 150, true);
         check(roster.Bots.All(x => !x.Visible), "Bots behind the camera have no labels");
         camera.Projection = new(1.2f, .5f, 1);
         check(!BotLabels.InView(camera, a, 150, out _), "Bots outside the viewport have no labels");

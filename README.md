@@ -21,7 +21,7 @@ Keep watching your solo SPT raid after death or extraction. Fly freely around th
 - When it dies or extracts, stay where you are in Freecam. Automatic switching is optional and OFF by default.
 - Drag the spectator panels and watch without lingering player injury or flash effects.
 - Scale the interface for your monitor, automatically or manually, and zoom with Ctrl + mouse wheel.
-- Show information above visible bots: name, type, health, SAIN personality, carried value and current action. Supports SAIN, ORBIT, COMET, QuestingBots and LootingBots when installed.
+- Show information above bots on screen: name, type, health, SAIN personality, carried value and current action. Supports SAIN, ORBIT, COMET, QuestingBots and LootingBots when installed.
 - Optionally open a list of living bots grouped and colored by squad, then click to visit. OFF by default.
 - Choose HORIZON labels, BotDebug's overlay or neither. BotDebug remains optional and is never enabled by default.
 - Wait for Killcam to finish, if installed.
@@ -45,7 +45,9 @@ ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectato
 
 Use Freecam's usual movement controls. **Mouse wheel** visits bots; **Escape** opens the spectator menu, where you can change the bot filter, toggle BotDebug or choose **Leave raid** to save and exit.
 
-Choose **Bot info** in the menu for HORIZON labels, or **BotDebug** if you prefer its overlay. Labels only appear for visible bots within the configured distance (150 m by default). Carried value estimates the entire equipped inventory, including gear and item stacks, using handbook prices. It is refreshed every five seconds; it is not profit earned during the raid. No Raid Review installation is needed.
+**Bot info** is the default overlay. Its text has a transparent background and a dark outline for readability. Labels show through walls and scenery by default; turn off **Show bots through scenery** in the menu or F12 to require line of sight. Bots outside the screen or beyond the configured distance (150 m by default) are never labeled. You can also choose **BotDebug** or **Off**; an explicitly saved overlay choice is preserved.
+
+Carried value estimates the entire equipped inventory, including gear and item stacks, using handbook prices. It is refreshed every five seconds; it is not profit earned during the raid. No Raid Review installation is needed.
 
 Enable **Show bot list** in the menu or F12. Hold **Left Alt** or open **Escape**, then click a bot to move the camera or drag the list by its title. The list includes all living bot types regardless of your mouse-wheel filter. A click preserves follow mode if it was already enabled.
 

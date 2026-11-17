@@ -313,7 +313,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         if (_settings.ShowBotList.Value || _overlay.Mode == SpectatorOverlay.BotInfo)
             _roster.Refresh(world, Time.unscaledTime);
         if (_overlay.Mode == SpectatorOverlay.BotInfo && _camera.Camera != null)
-            _labels.Update(_roster, world, _camera.Camera, Time.unscaledTime, _settings.LabelDistance.Value);
+            _labels.Update(_roster, world, _camera.Camera, Time.unscaledTime, _settings.LabelDistance.Value, _settings.ShowOccludedBots.Value);
     }
 
     private void LateUpdate()
@@ -563,6 +563,9 @@ public sealed partial class Plugin : BaseUnityPlugin
             _labelStyle.wordWrap = true;
             _labelStyle.richText = false;
             _labelStyle.normal.textColor = Color.white;
+            _labelStyle.normal.background = null;
+            _labelOutlineStyle = new GUIStyle(_labelStyle);
+            _labelOutlineStyle.normal.textColor = Color.black;
             _listPanel.Reset();
             if (_dragControl != 0 && GUIUtility.hotControl == _dragControl) GUIUtility.hotControl = 0;
             _dragControl = 0; _dragPosition = null;
@@ -660,7 +663,8 @@ public sealed partial class Plugin : BaseUnityPlugin
             if (!_botDebugReady) GUILayout.Label(_botDebugStatus, _textStyle);
             if (_overlay.Mode == SpectatorOverlay.BotInfo)
             {
-                GUILayout.Label("Visible bots: name, health, personality, carried value and current action.", _textStyle);
+                GUILayout.Label("Bot info: name, health, personality, carried value and current action.", _textStyle);
+                _settings.ShowOccludedBots.Value = GUILayout.Toggle(_settings.ShowOccludedBots.Value, "Show bots through scenery", _toggleStyle);
             }
             _settings.ShowBotList.Value = GUILayout.Toggle(_settings.ShowBotList.Value, "Show bot list (click to visit)", _toggleStyle);
             _settings.ShowHelp.Value = GUILayout.Toggle(_settings.ShowHelp.Value, "Show help while moving the camera", _toggleStyle);

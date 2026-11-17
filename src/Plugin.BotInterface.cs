@@ -8,6 +8,7 @@ public sealed partial class Plugin
     private readonly DraggablePanel _listPanel = new();
     private Vector2 _listScroll;
     private GUIStyle? _labelStyle;
+    private GUIStyle? _labelOutlineStyle;
     private readonly GUIContent _labelContent = new();
     private readonly GUIContent _rowContent = new();
     private readonly List<Rect> _drawnLabels = new();
@@ -82,11 +83,12 @@ public sealed partial class Plugin
                     rect.y = previous.yMax + 4;
             _drawnLabels.Add(rect);
             GUI.color = Color.white;
-            GUI.DrawTexture(rect, _panelTexture);
-            GUI.color = BotColor(bot);
-            GUI.DrawTexture(new Rect(rect.x, rect.y, 3 * scale, rect.height), Texture2D.whiteTexture);
-            GUI.color = Color.white;
-            GUI.Label(new Rect(rect.x + 10 * scale, rect.y + 6 * scale, width - 20 * scale, height - 12 * scale), _labelContent, _labelStyle);
+            var textRect = new Rect(rect.x + 10 * scale, rect.y + 6 * scale, width - 20 * scale, height - 12 * scale);
+            float outline = Mathf.Max(1f, scale);
+            for (int dx = -1; dx <= 1; dx += 2)
+                for (int dy = -1; dy <= 1; dy += 2)
+                    GUI.Label(new Rect(textRect.x + dx * outline, textRect.y + dy * outline, textRect.width, textRect.height), _labelContent, _labelOutlineStyle);
+            GUI.Label(textRect, _labelContent, _labelStyle);
         }
         GUI.color = color;
         GUI.depth = depth;

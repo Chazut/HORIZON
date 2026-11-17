@@ -32,7 +32,7 @@ internal sealed class BotLabels
 
     // Up to two bots per frame; never gather inventories or mod state from OnGUI.
     // The time budget is checked between bots, all Unity access stays on the main thread.
-    public void Update(BotRoster roster, GameWorld world, Camera camera, float now, float distance)
+    public void Update(BotRoster roster, GameWorld world, Camera camera, float now, float distance, bool showOccluded = false)
     {
         if (roster.Bots.Count == 0) return;
         long start = Stopwatch.GetTimestamp();
@@ -48,7 +48,7 @@ internal sealed class BotLabels
             {
                 var player = bot.Player;
                 bot.Visible = PmcNavigator.IsLivingBot(player) && InView(camera, player, distance, out _) &&
-                    (ClearLine(camera, player, Anchor(player)) || ClearLine(camera, player, player.Position + Vector3.up));
+                    (showOccluded || ClearLine(camera, player, Anchor(player)) || ClearLine(camera, player, player.Position + Vector3.up));
                 if (bot.Visible)
                 {
                     var health = player.HealthController.GetBodyPartHealth(EBodyPart.Common, true);

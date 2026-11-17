@@ -29,11 +29,14 @@ try
     Check(fresh.Targets.Value == BotFilter.PmcOnly && fresh.CycleBots.Value && !fresh.ReverseWheel.Value, "PMC-only wheel navigation by default");
     Check(fresh.VisitDistance.Value == 2.5f && fresh.Overlay.Value != SpectatorOverlay.BotDebug && fresh.ShowHelp.Value, "Default camera/help preferences and BotDebug OFF");
     Check(!fresh.AutoSwitchOnDeath.Value && !fresh.ShowBotList.Value && fresh.Overlay.Value == SpectatorOverlay.BotInfo, "Default detached camera on death, optional list OFF and HORIZON labels selected");
+    Check(fresh.ShowOccludedBots.Value, "Through-scenery labels are enabled by default");
+    fresh.ShowOccludedBots.Value = false;
     fresh.AutoSwitchOnDeath.Value = true; fresh.ShowBotList.Value = true;
     fresh.Overlay.Value = SpectatorOverlay.Off;
     fresh.BotListPosition.Value = new Vector2(.3f, .4f);
     var displayReload = new SpectatorSettings(new ConfigFile(path, false));
     Check(displayReload.AutoSwitchOnDeath.Value && displayReload.ShowBotList.Value && displayReload.Overlay.Value == SpectatorOverlay.Off, "Explicit list, overlay and death preferences survive restart");
+    Check(!displayReload.ShowOccludedBots.Value, "Explicit visibility preference survives restart");
     Check(displayReload.BotListPosition.Value.x == .3f && displayReload.BotListPosition.Value.y == .4f, "Dragged list position persists independently");
     Check(fresh.MenuKey.Value.MainKey == KeyCode.Escape, "Escape opens spectator menu by default");
     Check(fresh.FollowKey.Value.MainKey == KeyCode.F && fresh.OrientationKey.Value.MainKey == KeyCode.R, "Independent follow and orientation keys");
@@ -89,9 +92,9 @@ try
     File.WriteAllText(oldPath, oldSettings);
     Check(SpectatorSettings.ImportLegacyConfig(horizonConfig), "First HORIZON launch imports the old GUID config");
     var imported = new SpectatorSettings(horizonConfig);
-    Check(imported.Overlay.Value == SpectatorOverlay.BotDebug, "Existing automatic BotDebug preference migrates into the exclusive selector");
-    imported.Overlay.Value = SpectatorOverlay.BotInfo;
-    Check(new SpectatorSettings(new ConfigFile(horizonPath, false)).Overlay.Value == SpectatorOverlay.BotInfo, "New overlay choice takes priority over old automatic BotDebug setting");
+    Check(imported.Overlay.Value == SpectatorOverlay.BotInfo, "Legacy automatic BotDebug flag does not override the new BotInfo default");
+    imported.Overlay.Value = SpectatorOverlay.BotDebug;
+    Check(new SpectatorSettings(new ConfigFile(horizonPath, false)).Overlay.Value == SpectatorOverlay.BotDebug, "Explicit BotDebug selector remains available and survives restart");
     Check(!imported.Enabled.Value && !imported.AfterExtraction.Value && !imported.CycleBots.Value && imported.Targets.Value == BotFilter.AllBots && imported.MenuKey.Value.MainKey == KeyCode.F7,
         "GUID migration preserves user preferences and the old wheel key");
     Check(File.ReadAllText(oldPath) == oldSettings, "Original Raid Spectator config is preserved");
