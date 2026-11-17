@@ -18,7 +18,14 @@ public sealed partial class Plugin
         new(.61f, .87f, .43f), new(.99f, .62f, .47f), new(.56f, .83f, .98f), new(.82f, .67f, 1f)
     };
 
-    private static Color BotColor(SpectatorBot bot) => bot.ColorIndex >= 0 ? SquadColors[bot.ColorIndex] : Color.white;
+    private static Color BotColor(SpectatorBot bot) => bot.ColorIndex switch
+    {
+        BotPresentation.ScavColor => Color.white,
+        BotPresentation.BossColor => new Color(1f, .36f, .36f),
+        BotPresentation.GuardColor => new Color(1f, .64f, .28f),
+        BotPresentation.SpecialColor => new Color(.79f, .55f, 1f),
+        _ => SquadColors[bot.ColorIndex]
+    };
 
     private void BindBotInformation()
     {
@@ -71,7 +78,7 @@ public sealed partial class Plugin
         foreach (var bot in _roster.Bots)
         {
             if (!bot.Visible || !PmcNavigator.IsLivingBot(bot.Player) ||
-                !BotLabels.InView(_camera.Camera, bot.Player, _settings.LabelDistance.Value, out var point)) continue;
+                !BotLabels.InView(_camera.Camera, bot.Player, _settings.EffectiveLabelDistance, out var point)) continue;
             float width = Mathf.Min(310 * scale, Screen.width - 16);
             _labelContent.text = bot.Label;
             float height = _labelStyle.CalcHeight(_labelContent, width - 20 * scale) + 12 * scale;
@@ -88,6 +95,7 @@ public sealed partial class Plugin
             for (int dx = -1; dx <= 1; dx += 2)
                 for (int dy = -1; dy <= 1; dy += 2)
                     GUI.Label(new Rect(textRect.x + dx * outline, textRect.y + dy * outline, textRect.width, textRect.height), _labelContent, _labelOutlineStyle);
+            GUI.color = BotColor(bot);
             GUI.Label(textRect, _labelContent, _labelStyle);
         }
         GUI.color = color;

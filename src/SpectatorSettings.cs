@@ -19,6 +19,8 @@ internal sealed class SpectatorSettings
     public ConfigEntry<bool> AutoSwitchOnDeath { get; }
     public ConfigEntry<bool> ShowBotList { get; }
     public ConfigEntry<float> LabelDistance { get; }
+    public ConfigEntry<bool> LimitLabelDistance { get; }
+    public float EffectiveLabelDistance => LimitLabelDistance.Value ? LabelDistance.Value : 0f;
     public ConfigEntry<bool> ShowOccludedBots { get; }
     public ConfigEntry<Vector2> BotListPosition { get; }
     public ConfigEntry<KeyboardShortcut> MenuKey { get; }
@@ -67,7 +69,8 @@ internal sealed class SpectatorSettings
             config.Remove(oldOverlay.Definition);
             AutoSwitchOnDeath = config.Bind("General", "Auto-switch when followed bot dies", false, "OFF: return to detached Freecam at the current camera position when the followed bot dies, extracts or disappears. ON: automatically follow the next living bot in the wheel filter.");
             ShowBotList = config.Bind("Interface", "Show bot list", false, "Show all living AI bots grouped by squad. Hold Left Alt or open the spectator menu to click a bot and move the camera. Independent of the wheel filter; no player body is moved.");
-            LabelDistance = config.Bind("Interface", "Bot label distance", 150f, new ConfigDescription("Maximum distance in metres for HORIZON labels. Bots outside the camera view never receive a label.", new AcceptableValueRange<float>(20f, 500f)));
+            LimitLabelDistance = config.Bind("Interface", "Limit bot label distance", false, "Limit labels to the configured distance. Off by default: all on-screen bots can have labels, including distant bots. Off-screen bots remain hidden.");
+            LabelDistance = config.Bind("Interface", "Bot label distance", 150f, new ConfigDescription("Maximum distance in metres when Limit bot label distance is enabled.", new AcceptableValueRange<float>(20f, 5000f)));
             ShowOccludedBots = config.Bind("Interface", "Show bots through scenery", true, "Show Bot info through walls and scenery, like BotDebug. Disable to label only bots with an unobstructed head or torso. Bots outside the camera view remain hidden in both modes.");
             BotListPosition = config.Bind("Interface", "Bot list position", new Vector2(0f, 0f), "Saved relative position of the bot list. Hold Left Alt or open the menu, then drag its header.");
             MenuKey = config.Bind("General", "Spectator menu", new KeyboardShortcut(KeyCode.Escape), "Release the mouse and open camera controls, overlay options and Leave raid. Escape always works as a fallback. The raid keeps running while the menu is open.");

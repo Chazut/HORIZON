@@ -5,6 +5,16 @@ namespace Horizon;
 
 internal static class BotPresentation
 {
+    public const int ScavColor = -1, BossColor = -2, GuardColor = -3, SpecialColor = -4;
+
+    public static int RoleColorIndex(string role, string group)
+    {
+        if (role == "pmcUSEC" || role == "pmcBEAR") return ColorIndex(group);
+        if (role == "assault" || role == "assaultGroup" || role == "cursedAssault" || role == "marksman") return ScavColor;
+        if (role.StartsWith("boss", StringComparison.OrdinalIgnoreCase) || role == "followerBigPipe" || role == "followerBirdEye") return BossColor;
+        return role.StartsWith("follower", StringComparison.OrdinalIgnoreCase) ? GuardColor : SpecialColor;
+    }
+
     public static string Kind(string role)
     {
         switch (role)

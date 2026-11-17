@@ -313,7 +313,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         if (_settings.ShowBotList.Value || _overlay.Mode == SpectatorOverlay.BotInfo)
             _roster.Refresh(world, Time.unscaledTime);
         if (_overlay.Mode == SpectatorOverlay.BotInfo && _camera.Camera != null)
-            _labels.Update(_roster, world, _camera.Camera, Time.unscaledTime, _settings.LabelDistance.Value, _settings.ShowOccludedBots.Value);
+            _labels.Update(_roster, world, _camera.Camera, Time.unscaledTime, _settings.EffectiveLabelDistance, _settings.ShowOccludedBots.Value);
     }
 
     private void LateUpdate()
@@ -665,6 +665,8 @@ public sealed partial class Plugin : BaseUnityPlugin
             {
                 GUILayout.Label("Bot info: name, health, personality, carried value and current action.", _textStyle);
                 _settings.ShowOccludedBots.Value = GUILayout.Toggle(_settings.ShowOccludedBots.Value, "Show bots through scenery", _toggleStyle);
+                _settings.LimitLabelDistance.Value = GUILayout.Toggle(_settings.LimitLabelDistance.Value, "Limit label distance (F12)", _toggleStyle);
+                GUILayout.Label("White: Scavs | Squad colors: PMCs | Red: bosses | Orange: guards | Violet: other factions", _textStyle);
             }
             _settings.ShowBotList.Value = GUILayout.Toggle(_settings.ShowBotList.Value, "Show bot list (click to visit)", _toggleStyle);
             _settings.ShowHelp.Value = GUILayout.Toggle(_settings.ShowHelp.Value, "Show help while moving the camera", _toggleStyle);

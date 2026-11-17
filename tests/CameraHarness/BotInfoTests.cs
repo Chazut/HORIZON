@@ -36,6 +36,10 @@ internal static class BotInfoTests
         check(roster.Bots.Count == 5, "Roster excludes humans, corpses, inactive bots and duplicate IDs");
         check(roster.Bots[0].Id == "a" && roster.Bots[1].Id == "b" && roster.Bots[0].ColorIndex == roster.Bots[1].ColorIndex, "Squad members stay together and share a color");
         check(roster.Bots.Single(x => x.Id == "c").Kind == "Scav", "List includes non-PMC types independently of wheel filter");
+        check(roster.Bots.Single(x => x.Id == "c").ColorIndex == BotPresentation.ScavColor, "Scav squads remain white");
+        check(BotPresentation.RoleColorIndex("bossKilla", "group:1") == BotPresentation.BossColor && BotPresentation.RoleColorIndex("followerBigPipe", "group:1") == BotPresentation.BossColor, "Bosses and Goons use the boss color");
+        check(BotPresentation.RoleColorIndex("followerBully", "group:1") == BotPresentation.GuardColor, "Boss guards have their own color");
+        check(new[] { "exUsec", "pmcBot", "sectantWarrior", "infectedAssault", "customFaction" }.All(r => BotPresentation.RoleColorIndex(r, "group:1") == BotPresentation.SpecialColor), "Other factions use the special color");
         check(roster.Bots.Single(x => x.Id == "solo").Group != roster.Bots.Single(x => x.Id == "solo2").Group, "Unassigned bots are not invented squad mates");
         int color = roster.Bots[0].ColorIndex;
         world.AllAlivePlayersList.Reverse(); roster.Refresh(world, 2);
@@ -151,6 +155,14 @@ internal static class BotInfoTests
         check(!BotLabels.InView(camera, a, 150, out _), "Bots outside the viewport have no labels");
         camera.Projection = new(.5f, .5f, 1); a.transform.position = new(0, 0, 151);
         check(!BotLabels.InView(camera, a, 150, out _), "Label distance limit applies to world distance");
+        a.transform.position = new(0, 0, 2500);
+        check(BotLabels.InView(camera, a, 0, out _), "Unlimited labels include bots beyond the former 150m and 500m limits");
+        for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 28, 0, true);
+        check(alpha.Visible && alpha.Label.Contains("Alpha"), "Distant bot information is collected, not just projected");
+        camera.Projection = new(1.2f, .5f, 1);
+        check(!BotLabels.InView(camera, a, 0, out _), "Unlimited range still excludes off-screen bots");
+        camera.Projection = new(.5f, .5f, -1);
+        check(!BotLabels.InView(camera, a, 0, out _), "Unlimited range still excludes bots behind the camera");
         labels.Hide(roster); roster.Clear(); labels.Clear();
         check(roster.Bots.Count == 0, "Leaving a raid clears roster and scene references");
         check(BotPresentation.Kind("bossKilla").StartsWith("Boss") && BotPresentation.Kind("followerBully").StartsWith("Guard") && BotPresentation.Kind("exUsec") == "Rogue", "Roster types cover bosses, guards and rogues");

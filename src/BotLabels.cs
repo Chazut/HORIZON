@@ -23,7 +23,7 @@ internal sealed class BotLabels
     {
         viewport = camera.WorldToViewportPoint(Anchor(player));
         return viewport.z > 0 && viewport.x >= 0 && viewport.x <= 1 && viewport.y >= 0 && viewport.y <= 1 &&
-            (player.Position - camera.transform.position).sqrMagnitude <= distance * distance;
+            (distance <= 0 || (player.Position - camera.transform.position).sqrMagnitude <= distance * distance);
     }
 
     private static bool ClearLine(Camera camera, Player player, Vector3 target) =>

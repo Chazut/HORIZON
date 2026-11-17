@@ -37,11 +37,12 @@ internal sealed class BotRoster
             if (bot.Player != player) { bot.Visible = false; bot.NextDetails = bot.NextValue = 0; bot.Value = null; }
             bot.Player = player;
             bot.Name = player.Profile?.Nickname ?? player.ProfileId;
-            bot.Kind = BotPresentation.Kind(player.Profile?.Info?.Settings?.Role.ToString() ?? "Unknown");
+            string role = player.Profile?.Info?.Settings?.Role.ToString() ?? "Unknown";
+            bot.Kind = BotPresentation.Kind(role);
             var group = player.AIData?.BotOwner?.BotsGroup;
             bot.Group = group != null ? "group:" + group.Id : "solo:" + player.ProfileId;
             bot.GroupLabel = group != null ? "Squad " + group.Id : "Solo bots";
-            bot.ColorIndex = group != null ? BotPresentation.ColorIndex(bot.Group) : -1;
+            bot.ColorIndex = BotPresentation.RoleColorIndex(role, bot.Group);
             Bots.Add(bot);
         }
         _removed.Clear();

@@ -30,11 +30,15 @@ try
     Check(fresh.VisitDistance.Value == 2.5f && fresh.Overlay.Value != SpectatorOverlay.BotDebug && fresh.ShowHelp.Value, "Default camera/help preferences and BotDebug OFF");
     Check(!fresh.AutoSwitchOnDeath.Value && !fresh.ShowBotList.Value && fresh.Overlay.Value == SpectatorOverlay.BotInfo, "Default detached camera on death, optional list OFF and HORIZON labels selected");
     Check(fresh.ShowOccludedBots.Value, "Through-scenery labels are enabled by default");
+    Check(!fresh.LimitLabelDistance.Value && fresh.EffectiveLabelDistance == 0, "Distant labels enabled by default, including upgrades with a saved 150m range");
+    fresh.LimitLabelDistance.Value = true; fresh.LabelDistance.Value = 700;
+    Check(fresh.EffectiveLabelDistance == 700, "Optional distance limit uses the saved range");
     fresh.ShowOccludedBots.Value = false;
     fresh.AutoSwitchOnDeath.Value = true; fresh.ShowBotList.Value = true;
     fresh.Overlay.Value = SpectatorOverlay.Off;
     fresh.BotListPosition.Value = new Vector2(.3f, .4f);
     var displayReload = new SpectatorSettings(new ConfigFile(path, false));
+    Check(displayReload.LimitLabelDistance.Value && displayReload.EffectiveLabelDistance == 700, "Explicit distance limit survives restart");
     Check(displayReload.AutoSwitchOnDeath.Value && displayReload.ShowBotList.Value && displayReload.Overlay.Value == SpectatorOverlay.Off, "Explicit list, overlay and death preferences survive restart");
     Check(!displayReload.ShowOccludedBots.Value, "Explicit visibility preference survives restart");
     Check(displayReload.BotListPosition.Value.x == .3f && displayReload.BotListPosition.Value.y == .4f, "Dragged list position persists independently");
