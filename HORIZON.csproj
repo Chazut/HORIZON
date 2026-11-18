@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>HORIZON</AssemblyName>
     <RootNamespace>Horizon</RootNamespace>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Authors>Chazut</Authors>
     <Product>HORIZON</Product>
     <Description>Keep watching solo SPT raids after death or extraction, with Freecam, bot cycling and optional BotDebug.</Description>

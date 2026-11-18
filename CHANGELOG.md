@@ -1,13 +1,9 @@
-# Unreleased
+# HORIZON 1.2.0
 
-- Press F3 to hide or show Bot info for the current raid. F now starts in mouse orbit each time you attach to a bot. R toggles the bot's viewing direction.
-- Return to detached Freecam when the followed bot dies or extracts. Automatic switching is now optional and OFF by default.
-- Bot info is the default overlay, with transparent backgrounds and outlined text. Labels include health, SAIN personality, carried inventory value and current actions from SAIN, ORBIT, COMET, QuestingBots or LootingBots. Choose these labels, BotDebug or Off.
-- Labels show through scenery by default, with a toggle to require line of sight. Off-screen bots remain hidden.
-- Each BotInfo label has a dashed frame and a matching dashed line to a marker above the bot's head. Crowded labels spread out above distant bots.
-- Optional draggable bot list, grouped and colored by squad, with click-to-visit camera controls. OFF by default.
-- Larger interface on high-resolution monitors, with automatic scaling and manual size controls in the spectator menu and F12.
-- Hold Left Ctrl and scroll to zoom without switching bots, in Freecam or while following. Shortcut and speed are configurable.
+- **See what bots are doing.** BotInfo labels show their name, health, gear value and current action. Labels are on by default. Press **F3** to hide or show them.
+- **Find a squad.** Enable the bot list in the spectator menu and click a name to jump there.
+- **Follow a bot with F.** You can orbit with the mouse right away. Press **R** to lock to its view. If it dies or extracts, you return to Freecam by default.
+- **Zoom with Left Ctrl + mouse wheel.** The interface also scales automatically for high-resolution screens.
 
 # HORIZON 1.1.0
 

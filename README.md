@@ -11,7 +11,7 @@
 
 Keep watching your solo SPT raid after death or extraction. Fly freely around the map and see what the bots do next.
 
-**SPT 4.1.6 | 1.1.0 | Solo only: incompatible with Fika.**
+**HORIZON 1.2.0 for SPT 4.1.6. Requires a solo installation without Fika.**
 
 ## What it does
 

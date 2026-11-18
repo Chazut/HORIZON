@@ -1,56 +1,45 @@
 # HORIZON
 
-**Your raid ends. The world keeps going.**
+Did the PMC who killed you make it to extract? HORIZON lets you stay in your solo SPT raid after death or extraction. Fly back to the fight, follow a squad or watch the bots loot what's left.
 
-Ever wondered what happens after you die or extract? Stay in the raid, explore with Freecam and watch the bots carry on.
-
-**Requires Terkoiz Freecam 1.4.8 or later. Solo only: incompatible with Fika.**
+**HORIZON 1.2.0 for SPT 4.1.6.** Requires a solo installation without Fika and [Terkoiz Freecam 1.4.8 or later](https://sp-mod.com/mod/164/freecam).
 
 ## HORIZON {.tabset}
 
 ### Overview
 
-- **Keep watching after death or extraction.** Enable either or both in F12.
-- **Explore freely.** Fly around the map using Freecam's controls.
-- **Jump between bots.** Scroll through PMCs only, or all living bots.
-- **Optional BotDebug overlay.** Toggle it from the spectator menu if BotDebug is installed. OFF by default.
-- **Works alongside Killcam.** Watch the replay first, then enter Freecam.
+- **See what a bot is doing.** BotInfo shows its name, type, health, estimated gear value and current action. With SAIN, you can also see its personality. Actions from ORBIT, COMET, QuestingBots and LootingBots appear when those mods are installed and active.
+- **Pick out a squad.** PMC squadmates share a label color. A dotted line connects each label to its bot, even at a distance. Turn on the optional **Show bot list** and click a name to visit that squad member.
+- **Follow the fight.** Fly freely or attach the camera to a bot. When that bot dies or extracts, the camera stays where you last saw it. You can enable automatic switching if you'd like to follow someone else immediately.
 
-Your original raid result, loot and play time are preserved. Watching longer does not add survival time or turn a run-through into a survived raid. Transits work normally, and the raid timer still applies.
+When you're done, choose **Leave raid** in the spectator menu. You keep your original result, loot and play time. The raid timer still applies and transits work normally. If you use Killcam, its replay finishes before HORIZON takes over.
 
 ### Installation
 
-1. Install **Terkoiz Freecam 1.4.8 or later**.
-2. Extract HORIZON into your SPT folder.
-3. Open **F12 > HORIZON** to adjust your settings.
+1. Close the game and install Freecam.
+2. Extract the HORIZON ZIP into the SPT folder that contains `EscapeFromTarkov.exe`. Allow it to replace the old HORIZON DLL if you're updating.
+3. Start the game. Under **F12 > HORIZON**, choose whether to spectate after death, extraction or both.
 
-**Freecam is required:** HORIZON will not load without it.
-
-**Fika is incompatible**, including solo play with Fika installed.
-
-ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectators** to observe awake bots.
-
-Updating from Raid Spectator or an earlier HORIZON build using the old folder? Remove `BepInEx/plugins/RaidSpectator` before installing. The new plugin is `BepInEx/plugins/HORIZON/HORIZON.dll`.
-
-Keep your old config: its settings are automatically copied to `BepInEx/config/com.chazut.horizon.cfg` on first launch. An existing HORIZON config is kept as-is.
+**Updating from Raid Spectator?** Remove the old `BepInEx/plugins/RaidSpectator` folder and keep its config. HORIZON imports your old settings the first time it creates its own config.
 
 ### Controls & settings
 
 | Control | Action |
 | --- | --- |
-| Freecam controls | Move the camera freely |
-| Mouse wheel | Jump to the next or previous bot |
-| Escape | Open the spectator menu |
-| Leave raid | Save your original result and return to the usual end-of-raid screens |
+| Mouse wheel | Visit the previous or next PMC. Choose **All bots** in the menu to include Scavs, bosses and guards. |
+| F | Attach to the selected bot and orbit it with the mouse. Press again to detach. |
+| R | Switch between mouse orbit and the bot's viewing direction while following. |
+| Left Ctrl + mouse wheel | Zoom in or out. Works in Freecam and while following. |
+| F3 | Hide or show BotInfo for this raid. |
+| Esc | Open the spectator menu or return to the camera. |
+| Hold Left Alt | Click a bot in the list or drag a panel by its title. |
 
-The spectator menu lets you switch between **PMCs only** and **all bots**, visit bots and toggle BotDebug. Camera jumps do not automatically follow a bot.
+BotInfo is on by default and shows on-screen bots through scenery at any distance. The spectator menu lets you limit the distance, require line of sight or switch to the optional BotDebug overlay. For a bigger interface, adjust the scale in the menu or F12. The default scale adapts to your screen.
 
-In **F12 > HORIZON**, you can also configure death/extraction spectating, wheel navigation, reverse scrolling, camera distance and the help panel.
-
-Use **Leave raid** when you are done watching so the game can save normally.
+If you use ORBIT, enable **Wake for spectators** to wake bots across the map once all human players have died or extracted.
 
 ### Credits
 
-Thanks to **Terkoiz** for Freecam, **DrakiaXYZ** for BotDebug and **maschine** for Killcam.
+Thanks to **Terkoiz** for Freecam, **DrakiaXYZ** for BotDebug, **maschine** for Killcam and **ekky** for Raid Review, which contributed code for identifying bot actions.
 
 [Source code](https://github.com/Chazut/HORIZON) · MIT license.
