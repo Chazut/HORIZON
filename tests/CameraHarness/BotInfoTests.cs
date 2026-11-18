@@ -124,14 +124,26 @@ internal static class BotInfoTests
         var overlay = new OverlaySelection();
         overlay.Select(SpectatorOverlay.BotInfo, false);
         check(overlay.Mode == SpectatorOverlay.BotInfo, "Bot info does not require BotDebug");
+        overlay.ToggleBotInfo(); overlay.ObserveBotDebug(false);
+        check(overlay.Mode == SpectatorOverlay.Off, "Shortcut hides the default overlay for this raid");
+        overlay.ToggleBotInfo();
+        check(overlay.Mode == SpectatorOverlay.BotInfo, "The same shortcut shows labels again");
         overlay.Select(SpectatorOverlay.BotDebug, false);
         check(overlay.Mode == SpectatorOverlay.Off, "Missing BotDebug is not reported as active");
         overlay.Select(SpectatorOverlay.BotInfo, true); overlay.ObserveBotDebug(true);
         check(overlay.Mode == SpectatorOverlay.BotDebug, "External BotDebug activation suppresses info labels");
+        overlay.ToggleBotInfo(); overlay.ObserveBotDebug(false);
+        check(overlay.Mode == SpectatorOverlay.BotInfo, "The shortcut can temporarily show labels over a BotDebug selection");
+        overlay.ToggleBotInfo(); overlay.ObserveBotDebug(true);
+        check(overlay.Mode == SpectatorOverlay.BotDebug, "Hiding the temporary labels restores BotDebug");
         overlay.ObserveBotDebug(false);
         check(overlay.Mode == SpectatorOverlay.Off, "External BotDebug disable respected");
         overlay.Select(SpectatorOverlay.BotInfo, true); overlay.ObserveBotDebug(false);
         check(overlay.Mode == SpectatorOverlay.BotInfo, "Selecting info does not get undone by disabled BotDebug");
+        overlay.ToggleBotInfo();
+        check(overlay.Mode == SpectatorOverlay.Off, "An explicit Bot info selection clears any temporary return to BotDebug");
+        overlay.Select(SpectatorOverlay.BotInfo, true);
+        check(overlay.Mode == SpectatorOverlay.BotInfo, "Starting the next raid reapplies its saved overlay");
 
         Singleton<Handbook>.Instance = new Handbook();
         var camera = new Camera(); Physics.Hit = null;

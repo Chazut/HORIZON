@@ -24,6 +24,7 @@ internal sealed class SpectatorSettings
     public ConfigEntry<bool> ShowOccludedBots { get; }
     public ConfigEntry<Vector2> BotListPosition { get; }
     public ConfigEntry<KeyboardShortcut> MenuKey { get; }
+    public ConfigEntry<KeyboardShortcut> BotInfoKey { get; }
     public ConfigEntry<KeyboardShortcut> FollowKey { get; }
     public ConfigEntry<KeyboardShortcut> OrientationKey { get; }
     public ConfigEntry<float> OrbitSensitivity { get; }
@@ -74,7 +75,8 @@ internal sealed class SpectatorSettings
             ShowOccludedBots = config.Bind("Interface", "Show bots through scenery", true, "Show Bot info through walls and scenery, like BotDebug. Disable to label only bots with an unobstructed head or torso. Bots outside the camera view remain hidden in both modes.");
             BotListPosition = config.Bind("Interface", "Bot list position", new Vector2(0f, 0f), "Saved relative position of the bot list. Hold Left Alt or open the menu, then drag its header.");
             MenuKey = config.Bind("General", "Spectator menu", new KeyboardShortcut(KeyCode.Escape), "Release the mouse and open camera controls, overlay options and Leave raid. Escape always works as a fallback. The raid keeps running while the menu is open.");
-            FollowKey = config.Bind("General", "Follow selected bot", new KeyboardShortcut(KeyCode.F), "Toggle a camera following the selected bot. Scroll or use Next/Previous to switch targets. Press again to return to Freecam. Only active while spectating, outside menus.");
+            BotInfoKey = config.Bind("Interface", "Toggle Bot info", new KeyboardShortcut(KeyCode.F3), "Show or hide Bot info for this spectator session. The Bot overlay setting controls the next raid. None disables the shortcut.");
+            FollowKey = config.Bind("General", "Follow selected bot", new KeyboardShortcut(KeyCode.F), "Attach the camera in mouse orbit around the selected bot. Scroll or use Next/Previous to switch targets. Press again to return to Freecam. Only active while spectating, outside menus.");
             OrientationKey = config.Bind("General", "Follow camera orientation", new KeyboardShortcut(KeyCode.R), "While following, toggle between the bot's look direction and free mouse rotation around the bot.");
             OrbitSensitivity = config.Bind("General", "Orbit mouse sensitivity", 3f, new ConfigDescription("Mouse sensitivity when rotating around the followed bot.", new AcceptableValueRange<float>(0.1f, 10f)));
             ZoomKey = config.Bind("General", "Camera zoom modifier", new KeyboardShortcut(KeyCode.LeftControl), "Hold this key and scroll to move the camera closer/further, without switching bots. Also works while following a bot. Menus keep the wheel for scrolling. Left Alt is reserved for dragging the panel. None disables this shortcut.");

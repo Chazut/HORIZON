@@ -56,6 +56,11 @@ public sealed partial class Plugin
     private void ApplyOverlay(SpectatorOverlay mode)
     {
         _overlay.Select(mode, _botDebugReady);
+        SyncOverlay();
+    }
+
+    private void SyncOverlay()
+    {
         if (_botDebugReady) SetBotDebug(_overlay.Mode == SpectatorOverlay.BotDebug);
         _labels.Hide(_roster);
         Logger.LogInfo($"Spectator overlay: {_overlay.Mode}.");

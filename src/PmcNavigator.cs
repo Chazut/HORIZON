@@ -16,7 +16,7 @@ internal sealed class PmcNavigator
     private BotFilter _filter;
     private Player? _target;
     public bool Following { get; private set; }
-    public bool LockOrientation { get; private set; } = true;
+    public bool LockOrientation { get; private set; }
     public string? SelectedId => _target != null ? _target.ProfileId : null;
     private float _yaw, _pitch;
     private float _configuredDistance = float.NaN, _distance;
@@ -57,7 +57,11 @@ internal sealed class PmcNavigator
         if (Following) { Following = false; return; }
         if (!TargetAlive(world)) Move(world, camera, 1, distance);
         Following = TargetAlive(world);
-        if (Following) SeedOrbit(_target!);
+        if (Following)
+        {
+            LockOrientation = false;
+            SeedOrbit(_target!);
+        }
     }
 
     private bool TargetAlive(GameWorld world) => _target != null && _target.HealthController?.IsAlive == true &&
@@ -150,7 +154,7 @@ internal sealed class PmcNavigator
     {
         _cycle.Reset(); _ids.Clear(); _players.Clear();
         _target = null; Following = false;
-        LockOrientation = true; _yaw = _pitch = 0;
+        LockOrientation = false; _yaw = _pitch = 0;
         _configuredDistance = float.NaN;
         Caption = _filter == BotFilter.AllBots ? "Wheel: previous / next bot" : "Wheel: previous / next PMC";
     }

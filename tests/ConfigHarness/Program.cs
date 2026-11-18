@@ -44,6 +44,7 @@ try
     Check(displayReload.BotListPosition.Value.x == .3f && displayReload.BotListPosition.Value.y == .4f, "Dragged list position persists independently");
     Check(fresh.MenuKey.Value.MainKey == KeyCode.Escape, "Escape opens spectator menu by default");
     Check(fresh.FollowKey.Value.MainKey == KeyCode.F && fresh.OrientationKey.Value.MainKey == KeyCode.R, "Independent follow and orientation keys");
+    Check(fresh.BotInfoKey.Value.MainKey == KeyCode.F3, "F3 toggles Bot info by default");
     Check(fresh.AutomaticScale.Value && fresh.InterfaceScale.Value == 1f, "New and existing configs use resolution-aware UI scaling");
     Check(fresh.ZoomKey.Value.MainKey == KeyCode.LeftControl && fresh.ZoomSpeed.Value == 5f, "Ctrl and wheel zoom is enabled by default");
     fresh.AutomaticScale.Value = false;
@@ -53,6 +54,7 @@ try
     fresh.HelpPosition.Value = new Vector2(.25f, .75f);
     fresh.MenuPosition.Value = new Vector2(.6f, .2f);
     fresh.OrientationKey.Value = new KeyboardShortcut(KeyCode.F8);
+    fresh.BotInfoKey.Value = new KeyboardShortcut(KeyCode.J, KeyCode.LeftShift);
     fresh.AfterDeath.Value = false;
     fresh.AfterExtraction.Value = false;
     fresh.Targets.Value = BotFilter.AllBots;
@@ -69,6 +71,7 @@ try
     Check(reload.InterfaceScale.Value == .75f, "Minimum interface scale bounded");
     Check(reload.HelpPosition.Value.x == .25f && reload.HelpPosition.Value.y == .75f && reload.MenuPosition.Value.x == .6f && reload.MenuPosition.Value.y == .2f, "Separate dragged panel positions survive restart");
     Check(reload.OrientationKey.Value.MainKey == KeyCode.F8, "Customized orientation key survives restart");
+    Check(reload.BotInfoKey.Value.Equals(fresh.BotInfoKey.Value), "Configured Bot info shortcut and modifier survive restart");
     Check(!reload.AfterDeath.Value && !reload.AfterExtraction.Value && !reload.ShowHelp.Value && reload.Overlay.Value == SpectatorOverlay.BotInfo, "Independent toggles survive restart");
     Check(reload.Targets.Value == BotFilter.AllBots && reload.ReverseWheel.Value && reload.VisitDistance.Value == 5f, "Navigation preferences survive restart");
     reload.VisitDistance.Value = 1000f;

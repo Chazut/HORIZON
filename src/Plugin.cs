@@ -310,6 +310,11 @@ public sealed partial class Plugin : BaseUnityPlugin
             ApplyOverlay(_lastOverlay);
         }
         if (_botDebugReady) _overlay.ObserveBotDebug(_botDebug.Enabled);
+        if (!CameraMenu && _settings.BotInfoKey.Value.IsDown())
+        {
+            _overlay.ToggleBotInfo();
+            SyncOverlay();
+        }
         if (_settings.ShowBotList.Value || _overlay.Mode == SpectatorOverlay.BotInfo)
             _roster.Refresh(world, Time.unscaledTime);
         if (_overlay.Mode == SpectatorOverlay.BotInfo && _camera.Camera != null)
@@ -660,6 +665,8 @@ public sealed partial class Plugin : BaseUnityPlugin
             if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotDebug ? "[BotDebug]" : "BotDebug", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotDebug);
             GUI.enabled = oldEnabled;
             GUILayout.EndHorizontal();
+            if (_settings.BotInfoKey.Value.MainKey != KeyCode.None)
+                GUILayout.Label($"{_settings.BotInfoKey.Value}: show / hide Bot info", _textStyle);
             if (!_botDebugReady) GUILayout.Label(_botDebugStatus, _textStyle);
             if (_overlay.Mode == SpectatorOverlay.BotInfo)
             {
@@ -678,7 +685,8 @@ public sealed partial class Plugin : BaseUnityPlugin
         }
         else
         {
-            GUILayout.Label("Spectating | Esc: menu / Leave raid", _textStyle);
+            var infoKey = _settings.BotInfoKey.Value;
+            GUILayout.Label(infoKey.MainKey == KeyCode.None ? "Esc: menu / Leave raid" : $"Esc: menu / Leave raid | {infoKey}: Bot info", _textStyle);
             if (_settings.CycleBots.Value) GUILayout.Label(_navigator.Caption, _textStyle);
             GUILayout.Label($"{_settings.FollowKey.Value}: {(_navigator.Following ? "stop following" : "follow bot")} | Hold Left Alt to drag", _textStyle);
             if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: {(_navigator.LockOrientation ? "bot view" : "mouse orbit")}", _textStyle);

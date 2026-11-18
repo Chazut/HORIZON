@@ -45,13 +45,15 @@ ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectato
 
 Use Freecam's usual movement controls. **Mouse wheel** visits bots; **Escape** opens the spectator menu, where you can change the bot filter, toggle BotDebug or choose **Leave raid** to save and exit.
 
-**Bot info** is the default overlay. Its text has a transparent background and a dark outline for readability. Labels show through walls and scenery by default; turn off **Show bots through scenery** in the menu or F12 to require line of sight. Bots outside the screen or beyond the configured distance (150 m by default) are never labeled. You can also choose **BotDebug** or **Off**; an explicitly saved overlay choice is preserved.
+**Bot info** is the default overlay. Press **F3** to hide or show labels while spectating. The next raid starts with the overlay selected in your settings. You can rebind F3 in F12.
+
+Labels have a transparent background and outlined text. They show through scenery at any distance while the bot is on screen. Use the spectator menu or F12 to limit their range, require line of sight, or choose **BotDebug** or **Off**.
 
 Carried value estimates the entire equipped inventory, including gear and item stacks, using handbook prices. It is refreshed every five seconds; it is not profit earned during the raid. No Raid Review installation is needed.
 
 Enable **Show bot list** in the menu or F12. Hold **Left Alt** or open **Escape**, then click a bot to move the camera or drag the list by its title. The list includes all living bot types regardless of your mouse-wheel filter. A click preserves follow mode if it was already enabled.
 
-**F** attaches/detaches the camera. **R** switches between the bot's viewing direction and free mouse orbit. Both keys, mouse sensitivity and camera distance are configurable in F12. Hold **Left Alt** to drag the help panel by its title; drag the menu by its title while it is open. Their positions are saved.
+Press **F** to attach the camera and orbit the bot with your mouse. **R** locks the camera to the bot's viewing direction or returns to mouse orbit. Press **F** again to detach. Both keys, mouse sensitivity and camera distance are configurable in F12. Hold **Left Alt** to drag the help panel by its title, or drag the open menu by its title. Their positions are saved.
 
 Hold **Left Ctrl + mouse wheel** to move closer/further without switching bots. In follow mode it adjusts the distance to the bot; in Freecam it moves along your viewing direction. Change the shortcut and speed in F12.
 

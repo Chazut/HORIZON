@@ -1,5 +1,6 @@
 # Unreleased
 
+- Press F3 to hide or show Bot info for the current raid. F now starts in mouse orbit each time you attach to a bot. R toggles the bot's viewing direction.
 - Return to detached Freecam when the followed bot dies or extracts. Automatic switching is now optional and OFF by default.
 - Bot info is the default overlay, with transparent backgrounds and outlined text. Labels include health, SAIN personality, carried inventory value and current actions from SAIN, ORBIT, COMET, QuestingBots or LootingBots. Choose these labels, BotDebug or Off.
 - Labels show through scenery by default, with a toggle to require line of sight. Off-screen bots remain hidden.

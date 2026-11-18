@@ -208,8 +208,13 @@ Check(navigator.Caption == "bb (1/1)", "PMC cycling resumes when an eligible bot
 navigator.ToggleFollow(world, bridge, 3);
 bridge.SetMenu(false, navigator.Following);
 Check(navigator.Following && !freecam.IsActive && !Cursor.visible, "Follow mode prevents competing Freecam movement");
+Check(!navigator.LockOrientation, "Attaching a selected bot starts in mouse orbit");
 pmcB.LookDirection = new Vector3(1, 0, 0);
 pmcB.transform.position = new Vector3(50, 2, 60);
+navigator.Follow(world, bridge, 3);
+Check(Math.Abs(freecam.transform.position.x - 50) < .01f && freecam.transform.position.z < 58,
+    "Default orbit follows translation without rotating when the bot turns");
+navigator.ToggleOrientation();
 navigator.Follow(world, bridge, 3);
 Check(freecam.transform.position.x == 47 && freecam.transform.position.z == 60, "Locked camera follows bot position and look direction");
 navigator.ToggleOrientation();
@@ -240,11 +245,15 @@ Physics.Hit = new RaycastHit { transform = new GameObject().transform, point = n
 navigator.Follow(world, bridge, 4);
 Check(freecam.transform.position.z > 59, "Zoomed follow camera still respects wall collision");
 Physics.Hit = null;
+navigator.ToggleFollow(world, bridge, 3);
+navigator.ToggleFollow(world, bridge, 3);
+Check(navigator.Following && !navigator.LockOrientation, "Reattaching after a locked follow restores mouse orbit in the same raid");
 navigator.Reset();
 navigator.Move(world, bridge, 1, 3);
 navigator.ToggleFollow(world, bridge, 3);
 navigator.Follow(world, bridge, 3);
-Check(freecam.transform.position.z == 57, "A new spectator session restores configured distance instead of retaining temporary zoom");
+Check(!navigator.LockOrientation && Math.Abs(freecam.transform.position.z - (60 - 3 * Math.Cos(12 * Math.PI / 180))) < .001f,
+    "A new spectator session starts in orbit at the configured distance");
 world.AllAlivePlayersList.Remove(pmcB);
 pmcA.HealthController.IsAlive = true;
 previousPosition = freecam.transform.position;
@@ -258,8 +267,10 @@ pmcB.HealthController.IsAlive = false;
 previousPosition = freecam.transform.position;
 Check(navigator.Follow(world, bridge, 3) == FollowTransition.Detached && freecam.transform.position.Equals(previousPosition), "Death preserves camera position and releases follow by default");
 navigator.Visit(world, bridge, pmcA, 3); navigator.ToggleFollow(world, bridge, 3);
+navigator.ToggleOrientation();
 pmcB.HealthController.IsAlive = true; pmcA.HealthController.IsAlive = false;
 Check(navigator.Follow(world, bridge, 3, true) == FollowTransition.Switched && navigator.SelectedId == pmcB.ProfileId && navigator.Following, "Opt-in automatic switching follows the next living PMC");
+Check(navigator.LockOrientation, "Switching bots while already following keeps the chosen orientation");
 pmcB.HealthController.IsAlive = false; previousPosition = freecam.transform.position;
 Check(navigator.Follow(world, bridge, 3, true) == FollowTransition.Detached && freecam.transform.position.Equals(previousPosition), "Auto-switch with no candidates returns to stationary Freecam");
 var listScav = world.AllAlivePlayersList.First(p => p.ProfileId == "scav");
