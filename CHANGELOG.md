@@ -1,9 +1,19 @@
 # HORIZON 1.2.0
 
-- **See what the PMC who killed you does next.** BotInfo shows their name, health, estimated gear value and current action in Freecam, plus personality with SAIN. Labels are on by default. Press **F3** for a clear view.
-- **Pick out a squad across the map.** PMC squadmates share a color, and a dotted line connects each label to its bot. Open the optional bot list and click a name to jump straight to that squadmate.
-- **See what caught a bot's attention.** Press **F** to follow it and orbit with the mouse, then **R** to look where it's facing. If it dies or extracts, the camera stays at the scene in Freecam by default.
-- **Get a closer look on a 4K screen.** The interface scales with your resolution, and **Left Ctrl + mouse wheel** zooms the camera in Freecam or while following a bot.
+## Features
+
+- **BotInfo** shows health, gear value, and current action, plus personality with SAIN. Press **F3** to toggle labels.
+- **Squad colors and an optional bot list** help you find PMC squadmates. Click a name to jump to that bot.
+- **Camera zoom** uses **Left Ctrl + mouse wheel**. The interface scales for 4K screens.
+
+## Changes
+
+- **F** follows a bot in mouse orbit by default. **R** locks the camera to its facing direction.
+- When the bot dies or extracts, the camera returns to Freecam by default.
+
+## Fixes
+
+- Dotted lines keep distant or crowded labels connected to the right bots.
 
 # HORIZON 1.1.0
 
