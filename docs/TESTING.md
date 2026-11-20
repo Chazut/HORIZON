@@ -56,7 +56,7 @@ Run `./package.ps1 -SptRoot <SPT folder> -FikaPath <path to Fika.Core.dll>` to p
 For a live check, connect two graphical players to a hosted raid. Repeat with a headless host. Enable free-camera and bot spectating in the Fika server settings.
 
 - While both players are alive, verify HORIZON stays inactive. After one dies or extracts, check that only their screen gets the controls and the other player can finish the raid. Verify the F6 menu, bot cycling, F3 labels and Fika's extract key.
-- Install the same RC3 DLL on the graphical or headless raid host and the spectating client. Watch one bot through two different actions. Check that its F3 action updates on the joining player's screen, including with an AI mod running on the host. Check damage and loot changes. Repeat after extraction, an ordinary death, reconnect and with a second spectator. On a graphical host, compare labels on the same bot when both cameras are available.
+- Install the same HORIZON build on the graphical or headless raid host and the spectating client. Watch one bot through two different actions. Check that its F3 action updates on the joining player's screen, including with an AI mod running on the host. Check damage and loot changes. Repeat after extraction, an ordinary death, reconnect and with a second spectator. On a graphical host, compare labels on the same bot when both cameras are available.
 - Change either spectator permission and verify the native Fika restrictions. Check automatic extraction, transit, revive, disconnect and a second raid for stale overlays or input. Compare each player's saved outcome to their own exit.
 
 ## Solo raid lifecycle

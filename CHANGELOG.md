@@ -1,10 +1,9 @@
-# HORIZON 1.3.0 RC3
+# HORIZON 1.3.0 RC1
 
 - Added Fika spectator camera support for graphical hosts and clients, including clients on a headless-hosted raid. Fika controls permissions, extraction and saving.
 - Fika clients can cycle, follow and label replicated bots. The default HORIZON menu key is F6 in co-op.
 - BotInfo now requests current bot actions, personality, Ghost state, health and estimated carried value directly from the raid host. Works with graphical and headless hosts. The host checks the spectator's death or extraction and Fika permissions before sending a label.
-- Solo SPT, Fika players and headless raid hosts now use the same `HORIZON.dll`. It loads the built-in Fika integration when Fika is present. Install it on the raid host and each PC that wants to spectate. The SPT backend needs no files.
-- Updating from RC2? Remove its old `BepInEx/plugins/HORIZON/HORIZON.Fika.dll` and replace `HORIZON.dll` with RC3.
+- Solo SPT, Fika players and headless raid hosts use the same `HORIZON.dll`. It loads the built-in Fika integration when Fika is present. Install it on the raid host and each PC that wants to spectate. The SPT backend needs no files.
 
 # HORIZON 1.2.0
 

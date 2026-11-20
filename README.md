@@ -11,7 +11,7 @@
 
 Keep watching your SPT raid after death or extraction. Fly around the map and see what the bots do next.
 
-**HORIZON 1.3.0 RC3 for SPT 4.1.6.** Solo uses Terkoiz Freecam 1.4.8 or later. Co-op uses Fika's built-in spectator camera.
+**HORIZON 1.3.0 RC1 for SPT 4.1.6.** Solo uses Terkoiz Freecam 1.4.8 or later. Co-op uses Fika's built-in spectator camera.
 
 ## What it does
 
@@ -38,8 +38,6 @@ Transits work normally. The raid timer still applies.
 Plugin GUID: `com.chazut.horizon`. Settings are saved in `BepInEx/config/com.chazut.horizon.cfg`; older Raid Spectator settings are imported automatically on first launch.
 
 Updating from a build installed in `BepInEx/plugins/RaidSpectator`? Remove that old plugin folder first; keep its config to import your settings.
-
-Updating from 1.3.0 RC2? Remove the old `BepInEx/plugins/HORIZON/HORIZON.Fika.dll` when you replace `HORIZON.dll`.
 
 ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectators** to observe awake bots.
 
