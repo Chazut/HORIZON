@@ -11,7 +11,7 @@
 
 Keep watching your SPT raid after death or extraction. Fly around the map and see what the bots do next.
 
-**HORIZON 1.3.0 RC2 for SPT 4.1.6.** Solo uses Terkoiz Freecam 1.4.8 or later. Co-op uses Fika's built-in spectator camera.
+**HORIZON 1.3.0 RC3 for SPT 4.1.6.** Solo uses Terkoiz Freecam 1.4.8 or later. Co-op uses Fika's built-in spectator camera.
 
 ## What it does
 
@@ -32,12 +32,14 @@ Transits work normally. The raid timer still applies.
 ## Install
 
 1. For solo SPT, install **Terkoiz Freecam 1.4.8 or later**. Fika already provides its own camera.
-2. Extract the full HORIZON archive into your SPT game folder. Keep both DLLs together in `BepInEx/plugins/HORIZON/`. In Fika, install the same ZIP on the raid host and each player PC that will use HORIZON. If a headless client runs the raid, install it in that client's game folder. The SPT backend needs no installation.
+2. Extract the HORIZON archive into your SPT game folder. The same `BepInEx/plugins/HORIZON/HORIZON.dll` works in solo SPT and Fika. For co-op, install it on the raid host (graphical or headless) and each player PC that will use HORIZON. The SPT backend needs no installation.
 3. Open **F12 > HORIZON** to change your settings.
 
 Plugin GUID: `com.chazut.horizon`. Settings are saved in `BepInEx/config/com.chazut.horizon.cfg`; older Raid Spectator settings are imported automatically on first launch.
 
 Updating from a build installed in `BepInEx/plugins/RaidSpectator`? Remove that old plugin folder first; keep its config to import your settings.
+
+Updating from 1.3.0 RC2? Remove the old `BepInEx/plugins/HORIZON/HORIZON.Fika.dll` when you replace `HORIZON.dll`.
 
 ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectators** to observe awake bots.
 

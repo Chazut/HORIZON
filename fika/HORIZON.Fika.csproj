@@ -3,13 +3,17 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
-    <Version>1.3.0-rc.2</Version>
-    <AssemblyVersion>1.3.0.2</AssemblyVersion>
+    <AssemblyName>HORIZON.Fika.Integration</AssemblyName>
+    <Version Condition="'$(TransportVersion)' != ''">$(TransportVersion)</Version>
+    <AssemblyVersion Condition="'$(TransportAssemblyVersion)' != ''">$(TransportAssemblyVersion)</AssemblyVersion>
+    <MainAssemblyPath Condition="'$(MainAssemblyPath)' == ''">$(MSBuildProjectDirectory)/../bin/$(Configuration)/netstandard2.1/HORIZON.dll</MainAssemblyPath>
     <SptRoot Condition="'$(SptRoot)' == ''">C:\Games\SPT-4.1</SptRoot>
-    <FikaPath Condition="'$(FikaPath)' == ''">$(SptRoot)/BepInEx/plugins/Fika.Core.dll</FikaPath>
+    <FikaPath Condition="'$(FikaPath)' == '' and Exists('$(SptRoot)/BepInEx/plugins/Fika.Core.dll')">$(SptRoot)/BepInEx/plugins/Fika.Core.dll</FikaPath>
+    <FikaPath Condition="'$(FikaPath)' == '' and Exists('$(SptRoot)/BepInEx/plugins/Fika/Fika.Core.dll')">$(SptRoot)/BepInEx/plugins/Fika/Fika.Core.dll</FikaPath>
+    <FikaPath Condition="'$(FikaPath)' == ''">$(MSBuildProjectDirectory)/../../Fika-Plugin/Build/BepInEx/plugins/Fika.Core.dll</FikaPath>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../HORIZON.csproj" />
+    <Reference Include="HORIZON" HintPath="$(MainAssemblyPath)" Private="false" />
     <Reference Include="Fika.Core" HintPath="$(FikaPath)" Private="false" />
     <Reference Include="BepInEx" HintPath="$(SptRoot)/BepInEx/core/BepInEx.dll" Private="false" />
     <Reference Include="0Harmony" HintPath="$(SptRoot)/BepInEx/core/0Harmony.dll" Private="false" />

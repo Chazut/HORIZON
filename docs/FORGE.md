@@ -2,7 +2,7 @@
 
 Did the PMC who killed you make it to extract? HORIZON lets you watch your SPT raid after death or extraction. Fly back to the fight, follow a squad or watch the bots loot what's left.
 
-**HORIZON 1.3.0 RC2 for SPT 4.1.6.** Fika uses its native spectator camera. For solo SPT, install [Terkoiz Freecam 1.4.8 or later](https://sp-mod.com/mod/164/freecam).
+**HORIZON 1.3.0 RC3 for SPT 4.1.6.** Fika uses its native spectator camera. For solo SPT, install [Terkoiz Freecam 1.4.8 or later](https://sp-mod.com/mod/164/freecam).
 
 ## HORIZON {.tabset}
 
@@ -20,7 +20,9 @@ In solo, choose **Leave raid** in the spectator menu to save your original resul
 2. Extract the HORIZON ZIP into the SPT folder that contains `EscapeFromTarkov.exe`. Allow it to replace the old HORIZON DLL if you're updating.
 3. Start the game. Under **F12 > HORIZON**, choose whether to spectate after death, extraction or both.
 
-For Fika, install the same full ZIP on the machine running the raid (graphical host or headless game client) and each player PC that wants BotInfo. Both DLLs belong in `BepInEx/plugins/HORIZON/`. The SPT backend requires no files. After death or extraction, the spectator receives the host's bot actions, personality, Ghost state, health and estimated loot value. AI mods contribute the actions they expose on the host.
+The same `BepInEx/plugins/HORIZON/HORIZON.dll` works with or without Fika. In co-op, install it on the graphical host or headless game client running the raid and each player PC that wants BotInfo. The SPT backend requires no files. After death or extraction, the spectator receives the host's bot actions, personality, Ghost state, health and estimated loot value. AI mods contribute the actions they expose on the host.
+
+**Updating from RC2?** Remove the old `BepInEx/plugins/HORIZON/HORIZON.Fika.dll` when you replace `HORIZON.dll`.
 
 **Updating from Raid Spectator?** Remove the old `BepInEx/plugins/RaidSpectator` folder and keep its config. HORIZON imports your old settings the first time it creates its own config.
 

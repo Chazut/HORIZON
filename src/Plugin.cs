@@ -13,7 +13,7 @@ using UnityEngine;
 
 namespace Horizon;
 
-[BepInPlugin(Id, "HORIZON", "1.3.0.2")]
+[BepInPlugin(Id, "HORIZON", "1.3.0.3")]
 [BepInDependency("com.terkoiz.freecam", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("com.fika.core", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(KillcamBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
@@ -92,7 +92,7 @@ public sealed partial class Plugin : BaseUnityPlugin
                 // headless process, where the spectator component itself stays disabled.
                 try
                 {
-                    _fikaFeed = FikaBotFeed.Load(Info.Location, ReadAuthorityLabel, _physicsWarning);
+                    _fikaFeed = FikaBotFeed.Load(ReadAuthorityLabel, _physicsWarning);
                     Logger.LogInfo("Fika bot action sync ready.");
                 }
                 catch (Exception e) { Logger.LogWarning("Fika bot action sync unavailable: " + e.GetBaseException().Message); }

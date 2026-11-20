@@ -2,6 +2,12 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Horizon;
 
+if (args.Length == 4 && args[0] == "--package")
+{
+    PackagedPluginTests.Run(args[1], args[2], args[3]);
+    return;
+}
+
 int assertions = 0;
 void Check(bool value, string name)
 {
