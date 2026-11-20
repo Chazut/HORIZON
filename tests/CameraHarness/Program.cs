@@ -6,6 +6,7 @@ using UnityEngine;
 
 int count = 0;
 void Check(bool value, string description) { if (!value) throw new Exception(description); count++; }
+FreecamBridge.BindSolo(typeof(FreecamPlugin));
 var bridge = new FreecamBridge();
 var game = new LocalGame();
 Check(!FreecamBridge.CanAttach(game), "Readiness refuses missing Freecam");
@@ -406,6 +407,7 @@ try { BotDebugHooks.DistanceTranspiler(new[] { transformCall }).ToArray(); throw
 catch (InvalidOperationException) { count++; }
 
 BotInfoTests.Run(Check);
+FikaCameraTests.Run(Check);
 Console.WriteLine($"PASS: {count} production camera/overlay checks with Unity doubles (not a rendered raid).");
 
 public static class FakeKillcamPlugin { public static FakeKillcamController? ReplayCtrl; }

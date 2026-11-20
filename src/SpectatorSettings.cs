@@ -53,7 +53,7 @@ internal sealed class SpectatorSettings
         config.SaveOnConfigSet = false;
         try
         {
-            Enabled = config.Bind("General", "Enabled", true, "Keep a solo raid running after death/extraction and enter Freecam. Disabling while spectating saves your original raid result.");
+            Enabled = config.Bind("General", "Enabled", true, "Watch after death or extraction. Disabling ends solo spectating or returns control to Fika's spectator camera.");
             AfterDeath = config.Bind("General", "Spectate after death", true, "Continue watching after death. If Killcam is installed, its replay finishes first. Changes apply to the next death, not the current spectator session.");
             AfterExtraction = config.Bind("General", "Spectate after extraction", true, "Continue watching after a completed extraction, including run-throughs. Keeps the original result, exit and play time. Transit is unchanged. Changes apply to the next extraction.");
             // Migrate the renamed wheel setting. An existing new setting always
@@ -74,7 +74,7 @@ internal sealed class SpectatorSettings
             LabelDistance = config.Bind("Interface", "Bot label distance", 150f, new ConfigDescription("Maximum distance in metres when Limit bot label distance is enabled.", new AcceptableValueRange<float>(20f, 5000f)));
             ShowOccludedBots = config.Bind("Interface", "Show bots through scenery", true, "Show Bot info through walls and scenery, like BotDebug. Disable to label only bots with an unobstructed head or torso. Bots outside the camera view remain hidden in both modes.");
             BotListPosition = config.Bind("Interface", "Bot list position", new Vector2(0f, 0f), "Saved relative position of the bot list. Hold Left Alt or open the menu, then drag its header.");
-            MenuKey = config.Bind("General", "Spectator menu", new KeyboardShortcut(KeyCode.Escape), "Release the mouse and open camera controls, overlay options and Leave raid. Escape always works as a fallback. The raid keeps running while the menu is open.");
+            MenuKey = config.Bind("General", "Spectator menu", new KeyboardShortcut(KeyCode.Escape), "Open HORIZON camera and overlay controls. The default is Escape in solo and F6 in Fika. In co-op, use Fika's extract shortcut to leave.");
             BotInfoKey = config.Bind("Interface", "Toggle Bot info", new KeyboardShortcut(KeyCode.F3), "Show or hide Bot info for this spectator session. The Bot overlay setting controls the next raid. None disables the shortcut.");
             FollowKey = config.Bind("General", "Follow selected bot", new KeyboardShortcut(KeyCode.F), "Attach the camera in mouse orbit around the selected bot. Scroll or use Next/Previous to switch targets. Press again to return to Freecam. Only active while spectating, outside menus.");
             OrientationKey = config.Bind("General", "Follow camera orientation", new KeyboardShortcut(KeyCode.R), "While following, toggle between the bot's look direction and free mouse rotation around the bot.");

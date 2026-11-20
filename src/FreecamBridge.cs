@@ -1,16 +1,19 @@
+using System;
+using System.Reflection;
 using EFT;
 using EFT.CameraControl;
-using Terkoiz.Freecam;
 using UnityEngine;
-using CameraScript = Terkoiz.Freecam.Freecam;
 
 namespace Horizon;
 
 // Use Freecam's camera and movement implementation; do not clone it or teleport the dead body.
 internal sealed class FreecamBridge
 {
-    public FreecamController? Controller { get; private set; }
-    public CameraScript? Script { get; private set; }
+    private static FieldInfo _controllerField = null!, _activeField = null!;
+    internal static Type SoloControllerType => _controllerField.FieldType;
+    internal static Type SoloScriptType => _activeField.DeclaringType!;
+    public Behaviour? Controller { get; private set; }
+    public Behaviour? Script { get; private set; }
     public Camera? Camera { get; private set; }
     private Player? _player;
     private GamePlayerOwner? _owner;
@@ -22,24 +25,42 @@ internal sealed class FreecamBridge
     private DeathFade? _deathFade;
     private FastBlur? _deathBlur;
     private readonly SpectatorEffects _effects = new();
-    public bool Ready => Controller != null && Script != null && Script.gameObject.activeInHierarchy;
+    private Action<Quaternion>? _alignFika;
+    private bool _ownsCursor;
+    public bool Ready => Script != null && Script.gameObject.activeInHierarchy &&
+        (_alignFika != null ? Script.enabled && Camera != null : Controller != null);
+
+    internal static void BindSolo(Type plugin)
+    {
+        _controllerField = plugin.GetField("FreecamControllerInstance", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new MissingFieldException(plugin.FullName, "FreecamControllerInstance");
+        _activeField = plugin.Assembly.GetType("Terkoiz.Freecam.Freecam", true)!.GetField("IsActive")
+            ?? throw new MissingFieldException("Freecam.IsActive");
+    }
+
+    internal void AttachFika(Behaviour script, Camera camera, Action<Quaternion> align)
+    {
+        Script = script;
+        Camera = camera;
+        _alignFika = align;
+    }
 
     // Check readiness before deferring death without taking the camera away from Killcam.
     public static bool CanAttach(LocalGame game)
     {
         var player = game.LocalPlayer;
         var camera = player != null ? player.GetComponent<PlayerCameraController>()?.Camera : null;
-        var script = camera != null ? camera.GetComponent<CameraScript>() : null;
-        return FreecamPlugin.FreecamControllerInstance != null && script != null &&
+        var script = camera != null ? camera.GetComponent(SoloScriptType) as Behaviour : null;
+        return (_controllerField.GetValue(null) as Behaviour) != null && script != null &&
             script.gameObject.activeInHierarchy && game.PlayerOwner != null && game.GameUi != null;
     }
 
     public bool Attach(LocalGame game)
     {
-        var controller = FreecamPlugin.FreecamControllerInstance;
+        var controller = _controllerField.GetValue(null) as Behaviour;
         var player = game.LocalPlayer;
         var camera = player != null ? player.GetComponent<PlayerCameraController>()?.Camera : null;
-        var script = camera != null ? camera.GetComponent<CameraScript>() : null;
+        var script = camera != null ? camera.GetComponent(SoloScriptType) as Behaviour : null;
         if (controller == null || script == null || !script.gameObject.activeInHierarchy || player == null ||
             game.PlayerOwner == null || game.GameUi == null) return false;
 
@@ -49,7 +70,7 @@ internal sealed class FreecamBridge
         _player = player;
         _owner = game.PlayerOwner;
         _ownerEnabled = _owner.enabled;
-        _scriptActive = script.IsActive;
+        _scriptActive = (bool)_activeField.GetValue(script)!;
         _scriptEnabled = script.enabled;
         _pointOfView = player.PointOfView;
         _cursorLock = Cursor.lockState;
@@ -61,7 +82,7 @@ internal sealed class FreecamBridge
         player.PointOfView = EPointOfView.FreeCamera;
         _owner.enabled = false;
         script.enabled = true;
-        script.IsActive = true;
+        _activeField.SetValue(script, true);
         _hud.SetActive(false);
         ClearDeathEffects();
         _effects.Attach(camera);
@@ -79,28 +100,50 @@ internal sealed class FreecamBridge
 
     public void SetMenu(bool open, bool following = false)
     {
-        if (Script != null) Script.IsActive = !open && !following;
+        if (_alignFika != null)
+        {
+            if (open && !_ownsCursor)
+            {
+                _cursorLock = Cursor.lockState;
+                _cursorVisible = Cursor.visible;
+                _ownsCursor = true;
+            }
+            if (!open) { ReleaseCursor(); return; }
+        }
+        else if (Script != null) _activeField.SetValue(Script, !open && !following);
         Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
         Cursor.visible = open;
     }
 
     public void MoveTo(Vector3 position, Quaternion rotation)
     {
-        if (Ready) Script!.transform.SetPositionAndRotation(position, rotation);
+        if (!Ready) return;
+        _alignFika?.Invoke(rotation);
+        Script!.transform.SetPositionAndRotation(position, rotation);
     }
 
     public void Zoom(float wheel, float speed)
     {
-        if (Ready) Script!.transform.position += Script.transform.forward * (wheel * speed);
+        if (!Ready) return;
+        _alignFika?.Invoke(Script!.transform.rotation);
+        Script!.transform.position += Script.transform.forward * (wheel * speed);
     }
 
     public void Release(bool ending = false)
     {
+        if (_alignFika != null)
+        {
+            ReleaseCursor();
+            _alignFika = null;
+            Camera = null;
+            Script = null;
+            return;
+        }
         _effects.Restore();
         // Also used when entering spectator mode fails: restore exactly what we touched.
         if (Script != null)
         {
-            Script.IsActive = !ending && _scriptActive;
+            _activeField.SetValue(Script, !ending && _scriptActive);
             Script.enabled = _scriptEnabled;
         }
         if (_player != null) _player.PointOfView = _pointOfView;
@@ -119,5 +162,13 @@ internal sealed class FreecamBridge
         _hud = null;
         _deathFade = null;
         _deathBlur = null;
+    }
+
+    private void ReleaseCursor()
+    {
+        if (!_ownsCursor) return;
+        Cursor.lockState = _cursorLock;
+        Cursor.visible = _cursorVisible;
+        _ownsCursor = false;
     }
 }

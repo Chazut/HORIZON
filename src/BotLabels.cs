@@ -10,12 +10,16 @@ namespace Horizon;
 
 internal sealed class BotLabels
 {
-    private readonly OptionalBotData _data;
+    private readonly Func<Player, GameWorld, BotLabelSample> _read;
     private readonly Action<string> _warning;
     private int _cursor;
     private bool _failed;
     private bool _valueFailed;
-    public BotLabels(OptionalBotData data, Action<string> warning) { _data = data; _warning = warning; }
+    public BotLabels(Func<Player, GameWorld, BotLabelSample> read, Action<string> warning)
+    {
+        _read = read;
+        _warning = warning;
+    }
 
     public static Vector3 Anchor(Player player)
     {
@@ -65,9 +69,11 @@ internal sealed class BotLabels
                     (showOccluded || ClearLine(camera, player, player.Position + Vector3.up * 1.8f) || ClearLine(camera, player, player.Position + Vector3.up));
                 if (bot.Visible)
                 {
-                    var health = player.HealthController.GetBodyPartHealth(EBodyPart.Common, true);
-                    var detail = _data.ReadBot(player, world);
-                    if (now >= bot.NextValue)
+                    var sample = _read(player, world);
+                    var detail = sample.Behavior;
+                    var health = sample.FromHost ? sample.Health : Health(player);
+                    if (sample.FromHost) bot.Value = sample.Value;
+                    else if (now >= bot.NextValue)
                     {
                         bot.NextValue = now + 5f;
                         try { bot.Value = InventoryValue(player); }
@@ -80,7 +86,8 @@ internal sealed class BotLabels
                     }
                     string personality = detail.personality.Length > 0 ? " | " + detail.personality : "";
                     string value = bot.Value.HasValue ? bot.Value.Value.ToString("N0") + " RUB" : "unavailable";
-                    bot.Label = $"{bot.Name} | {bot.Kind}{personality}\nHealth: {health.Current:0}/{health.Maximum:0}\nLoot value (carried): {value}\n{(detail.ghost ? "Ghost | " : "")}{detail.action}";
+                    string hp = health is { } h ? $"{h.current:0}/{h.maximum:0}" : "unavailable";
+                    bot.Label = $"{bot.Name} | {bot.Kind}{personality}\nHealth: {hp}\nLoot value (carried): {value}\n{(detail.ghost ? "Ghost | " : "")}{detail.action}";
                 }
             }
             catch (Exception e)
@@ -93,7 +100,13 @@ internal sealed class BotLabels
         }
     }
 
-    private static double? InventoryValue(Player player)
+    internal static (float current, float maximum) Health(Player player)
+    {
+        var hp = player.HealthController.GetBodyPartHealth(EBodyPart.Common, true);
+        return (hp.Current, hp.Maximum);
+    }
+
+    internal static double? InventoryValue(Player player)
     {
         var handbook = Singleton<Handbook>.Instance;
         var items = player.Inventory?.GetPlayerItems(EPlayerItems.Equipment);

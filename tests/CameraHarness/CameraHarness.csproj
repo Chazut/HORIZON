@@ -2,6 +2,7 @@
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
   <ItemGroup>
     <Compile Include="../../src/FreecamBridge.cs" Link="Production/FreecamBridge.cs" />
+    <Compile Include="../../src/FikaSpectator.cs" Link="Production/FikaSpectator.cs" />
     <Compile Include="../../src/KillcamBridge.cs" Link="Production/KillcamBridge.cs" />
     <Compile Include="../../src/BotDebugBridge.cs" Link="Production/BotDebugBridge.cs" />
     <Compile Include="../../src/BotDebugView.cs" Link="Production/BotDebugView.cs" />
@@ -16,6 +17,7 @@
     <Compile Include="../../src/BotRoster.cs" Link="Production/BotRoster.cs" />
     <Compile Include="../../src/OptionalBotData.cs" Link="Production/OptionalBotData.cs" />
     <Compile Include="../../src/BotLabels.cs" Link="Production/BotLabels.cs" />
+    <Compile Include="../../src/BotLabelSample.cs" Link="Production/BotLabelSample.cs" />
     <Compile Include="../../src/BehaviorOwnership.cs" Link="Production/BehaviorOwnership.cs" />
     <Compile Include="../../src/OrbitBehaviorDecision.cs" Link="Production/OrbitBehaviorDecision.cs" />
     <Compile Include="../../src/CometBehaviorDecision.cs" Link="Production/CometBehaviorDecision.cs" />

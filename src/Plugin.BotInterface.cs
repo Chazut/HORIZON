@@ -55,13 +55,14 @@ public sealed partial class Plugin
 
     private void ApplyOverlay(SpectatorOverlay mode)
     {
-        _overlay.Select(mode, _botDebugReady);
+        if (mode == SpectatorOverlay.BotDebug && _fika != null && !CanUseBotDebug) mode = SpectatorOverlay.BotInfo;
+        _overlay.Select(mode, CanUseBotDebug);
         SyncOverlay();
     }
 
     private void SyncOverlay()
     {
-        if (_botDebugReady) SetBotDebug(_overlay.Mode == SpectatorOverlay.BotDebug);
+        if (CanUseBotDebug) SetBotDebug(_overlay.Mode == SpectatorOverlay.BotDebug);
         _labels.Hide(_roster);
         Logger.LogInfo($"Spectator overlay: {_overlay.Mode}.");
     }
@@ -167,7 +168,7 @@ public sealed partial class Plugin
         string previousGroup = "";
         foreach (var bot in _roster.Bots)
         {
-            string group = bot.GroupLabel == "Solo bots" ? "solo" : bot.Group;
+            string group = bot.GroupLabel;
             if (group != previousGroup) total += headerHeight;
             total += rowHeight;
             previousGroup = group;
@@ -181,7 +182,7 @@ public sealed partial class Plugin
         float y = 0;
         foreach (var bot in _roster.Bots)
         {
-            string group = bot.GroupLabel == "Solo bots" ? "solo" : bot.Group;
+            string group = bot.GroupLabel;
             if (group != previousGroup)
             {
                 GUI.color = BotColor(bot);

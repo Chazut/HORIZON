@@ -2,6 +2,7 @@
 // they do not simulate rendering, physics, audio, or the game's death callbacks.
 namespace UnityEngine
 {
+    public static class Mathf { public static float DeltaAngle(float from, float to) => (to - from + 540f) % 360f - 180f; }
     public static class Shader { public static float Blindness; public static void SetGlobalFloat(string name, float value) { if (name == "_BlindnessCoef") Blindness = value; } }
     public class Object { public static void Destroy(object obj) { } }
     public struct Vector3
@@ -15,7 +16,7 @@ namespace UnityEngine
         public static Vector3 operator -(Vector3 a, Vector3 b) => new(a.x-b.x, a.y-b.y, a.z-b.z);
         public static Vector3 operator *(Vector3 a, float b) => new(a.x*b, a.y*b, a.z*b);
     }
-    public struct Quaternion { public static Quaternion LookRotation(Vector3 v) => new(); }
+    public struct Quaternion { public Vector3 eulerAngles; public static Quaternion LookRotation(Vector3 v) => new(); }
     public class Transform
     {
         public GameObject gameObject = null!;
@@ -74,7 +75,7 @@ namespace EFT
     public enum EPointOfView { FirstPerson, FreeCamera, ThirdPerson }
     public enum WildSpawnType { pmcBEAR, pmcUSEC, assault, boss, follower, pmcBot }
     public class Settings { public WildSpawnType Role; }
-    public class Info { public Settings Settings = new(); }
+    public class Info { public Settings Settings = new(); public string? GroupId; }
     public class Profile { public string Nickname = "test"; public Info Info = new(); }
     public enum EBodyPart { Common }
     public struct ValueStruct { public float Current, Maximum; }

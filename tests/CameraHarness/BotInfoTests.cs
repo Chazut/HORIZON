@@ -149,7 +149,7 @@ internal static class BotInfoTests
         var camera = new Camera(); Physics.Hit = null;
         a.Inventory!.Items.Add(new Item { TemplateId = "ammo", StackObjectsCount = 30 });
         a.Inventory.Items.Add(new Item { TemplateId = "weapon" });
-        var labels = new BotLabels(data, warnings.Add);
+        var labels = new BotLabels((p, w) => new BotLabelSample(data.ReadBot(p, w)), warnings.Add);
         roster.Refresh(world, 10);
         labels.Update(roster, world, camera, 10, 150);
         // The stopwatch can intentionally stop after one bot on slow machines.
@@ -165,6 +165,13 @@ internal static class BotInfoTests
         a.Inventory.Throw = true;
         for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 22, 150);
         check(alpha.Visible && alpha.Label.Contains("unavailable") && alpha.Label.Contains("350/440"), "Missing valuation preserves other bot information");
+        var syncedLabels = new BotLabels((_, _) => new BotLabelSample(("Reckless", "COMET: Crossfire", true),
+            true, (301f, 440f), 1234d), warnings.Add);
+        int beforeHostLabel = a.Inventory.Reads;
+        for (int i = 0; i < 10; i++) syncedLabels.Update(roster, world, camera, 22.5f, 150);
+        check(alpha.Visible && alpha.Label.Contains("301/440") && alpha.Label.Contains("Ghost | COMET: Crossfire") &&
+            alpha.Label.Contains("Reckless") && alpha.Value == 1234d && a.Inventory.Reads == beforeHostLabel,
+            "A joining player's label uses the complete host sample even with an unreadable local inventory");
         Physics.Hit = new RaycastHit { transform = new GameObject().transform };
         for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 23, 150);
         check(roster.Bots.All(x => !x.Visible), "Opaque occlusion hides labels behind walls");

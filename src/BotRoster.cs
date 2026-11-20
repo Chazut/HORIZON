@@ -40,8 +40,18 @@ internal sealed class BotRoster
             string role = player.Profile?.Info?.Settings?.Role.ToString() ?? "Unknown";
             bot.Kind = BotPresentation.Kind(role);
             var group = player.AIData?.BotOwner?.BotsGroup;
-            bot.Group = group != null ? "group:" + group.Id : "solo:" + player.ProfileId;
-            bot.GroupLabel = group != null ? "Squad " + group.Id : "Solo bots";
+            bool replicated = group == null && PmcNavigator.IsObservedBot?.Invoke(player) == true;
+            string? groupId = group != null ? group.Id.ToString() : replicated ? player.Profile?.Info?.GroupId : null;
+            if (!string.IsNullOrEmpty(groupId))
+            {
+                bot.Group = "group:" + groupId;
+                bot.GroupLabel = "Squad " + groupId;
+            }
+            else
+            {
+                bot.Group = (replicated ? "unknown:" : "solo:") + player.ProfileId;
+                bot.GroupLabel = replicated ? "Unknown squad" : "Solo bots";
+            }
             bot.ColorIndex = BotPresentation.RoleColorIndex(role, bot.Group);
             Bots.Add(bot);
         }

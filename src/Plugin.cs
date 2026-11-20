@@ -9,16 +9,15 @@ using Comfort.Common;
 using EFT;
 using EFT.HealthSystem;
 using HarmonyLib;
-using Terkoiz.Freecam;
 using UnityEngine;
 
 namespace Horizon;
 
-[BepInPlugin(Id, "HORIZON", "1.2.0")]
-[BepInDependency("com.terkoiz.freecam", "1.4.8")]
+[BepInPlugin(Id, "HORIZON", "1.3.0.2")]
+[BepInDependency("com.terkoiz.freecam", BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency("com.fika.core", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(KillcamBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(BotDebugBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
-[BepInIncompatibility("com.fika.core")]
 [BepInIncompatibility("com.chazut.raidspectator")]
 public sealed partial class Plugin : BaseUnityPlugin
 {
@@ -49,7 +48,10 @@ public sealed partial class Plugin : BaseUnityPlugin
     private SpectatorOverlay _lastOverlay;
     private OptionalBotData _botData = null!;
     private BotLabels _labels = null!;
-    private bool CameraWatching => _session.Watching && _cameraActive;
+    private FikaSpectator? _fika;
+    private FikaBotFeed? _fikaFeed;
+    private bool CanUseBotDebug => _botDebugReady && (_fika == null || _fika.IsHost());
+    private bool CameraWatching => _cameraActive && (_fika != null || _session.Watching);
     private bool Extracted => _session.Extracted && _player != null;
     private ExitStatus SavedResult => _session.Outcome == WatchOutcome.Survived ? ExitStatus.Survived :
         _session.Outcome == WatchOutcome.Runner ? ExitStatus.Runner : ExitStatus.Killed;
@@ -81,18 +83,26 @@ public sealed partial class Plugin : BaseUnityPlugin
         }
         _settings = new SpectatorSettings(Config);
         _botData = new OptionalBotData(_physicsWarning);
-        _labels = new BotLabels(_botData, _physicsWarning);
-        if (Chainloader.PluginInfos.ContainsKey("com.fika.core"))
-        {
-            Logger.LogError("Fika is incompatible with HORIZON. No patches applied.");
-            enabled = false;
-            return;
-        }
+        _labels = new BotLabels(ReadBotLabel, _physicsWarning);
         try
         {
-            _sessionStart = AccessTools.Field(typeof(BaseLocalGame<EftGamePlayerOwner>), "SessionStartTime")
-                ?? throw new MissingFieldException("BaseLocalGame.SessionStartTime");
-            if (_sessionStart.FieldType != typeof(DateTime)) throw new InvalidOperationException("Unexpected raid clock type");
+            if (Chainloader.PluginInfos.TryGetValue("com.fika.core", out var fika))
+            {
+                // Fika polls its network on the Unity thread. The feed also runs on a
+                // headless process, where the spectator component itself stays disabled.
+                try
+                {
+                    _fikaFeed = FikaBotFeed.Load(Info.Location, ReadAuthorityLabel, _physicsWarning);
+                    Logger.LogInfo("Fika bot action sync ready.");
+                }
+                catch (Exception e) { Logger.LogWarning("Fika bot action sync unavailable: " + e.GetBaseException().Message); }
+                if (Application.isBatchMode || FikaSpectator.IsHeadless(fika.Instance.GetType().Assembly))
+                {
+                    enabled = false;
+                    return;
+                }
+                _fika = new FikaSpectator(fika.Instance);
+            }
             if (Chainloader.PluginInfos.TryGetValue(KillcamBridge.PluginId, out var killcam))
             {
                 _killcam.Bind(killcam.Instance.GetType());
@@ -121,12 +131,24 @@ public sealed partial class Plugin : BaseUnityPlugin
                     _configurationVisible = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), manager.Instance, getter);
             }
             _instance = this;
+            if (_fika != null)
+            {
+                InstallFikaCamera();
+                Logger.LogInfo("Ready for Fika's spectator camera.");
+                return;
+            }
+            if (!Chainloader.PluginInfos.TryGetValue("com.terkoiz.freecam", out var freecam) || freecam.Metadata.Version < new System.Version(1, 4, 8))
+                throw new InvalidOperationException("Solo spectating requires Terkoiz Freecam 1.4.8 or later.");
+            FreecamBridge.BindSolo(freecam.Instance.GetType());
+            _sessionStart = AccessTools.Field(typeof(BaseLocalGame<EftGamePlayerOwner>), "SessionStartTime")
+                ?? throw new MissingFieldException("BaseLocalGame.SessionStartTime");
+            if (_sessionStart.FieldType != typeof(DateTime)) throw new InvalidOperationException("Unexpected raid clock type");
             Patch(typeof(BaseLocalGame<EftGamePlayerOwner>), "InitiateGameStopping", nameof(DeathPrefix));
             Patch(typeof(LocalGame), "Stop", nameof(StopPrefix));
             Patch(typeof(BaseLocalGame<EftGamePlayerOwner>), "Stop", nameof(StopPrefix));
             Patch(typeof(Player), "OnGameSessionEnd", nameof(PlayerEndPrefix));
-            Patch(typeof(FreecamController), "Update", nameof(FreecamInputPrefix));
-            Patch(typeof(FreecamController), "get_IsFreecamActive", nameof(FreecamActivePrefix));
+            Patch(FreecamBridge.SoloControllerType, "Update", nameof(FreecamInputPrefix));
+            Patch(FreecamBridge.SoloControllerType, "get_IsFreecamActive", nameof(FreecamActivePrefix));
             Patch(typeof(Player), "ManualUpdate", nameof(PlayerTickPrefix));
             // World physics must keep receiving transform updates with no active
             // local player, including while waiting for Killcam and in the menu.
@@ -135,9 +157,9 @@ public sealed partial class Plugin : BaseUnityPlugin
                     postfix: new HarmonyMethod(typeof(Plugin), nameof(PhysicsTickPostfix)));
             Patch(typeof(ActiveHealthController), "ManualUpdate", nameof(HealthTickPrefix));
             Patch(typeof(ActiveHealthController), "ApplyDamage", nameof(DamagePrefix));
-            _harmony.Patch(AccessTools.DeclaredMethod(typeof(Terkoiz.Freecam.Freecam), "Update") ?? throw new MissingMethodException("Freecam.Update"),
+            _harmony.Patch(AccessTools.DeclaredMethod(FreecamBridge.SoloScriptType, "Update") ?? throw new MissingMethodException("Freecam.Update"),
                 transpiler: new HarmonyMethod(typeof(Plugin), nameof(FreecamAxisTranspiler)));
-            Logger.LogInfo("Ready. Solo only; Freecam 1.4.8 required. Spectator menu: Escape.");
+            Logger.LogInfo("Ready for solo raids. Spectator menu: Escape.");
         }
         catch (Exception e)
         {
@@ -160,8 +182,7 @@ public sealed partial class Plugin : BaseUnityPlugin
     {
         if (_session.Watching && ReferenceEquals(_game, candidate)) return true;
         if (!_settings.Enabled.Value || _session.Phase != SessionPhase.Idle ||
-            candidate.GetType() != typeof(LocalGame) || candidate.Status != GameStatus.Started ||
-            Chainloader.PluginInfos.ContainsKey("com.fika.core")) return false;
+            candidate.GetType() != typeof(LocalGame) || candidate.Status != GameStatus.Started || _fika != null) return false;
         var game = (LocalGame)candidate;
         bool extracting = result == ExitStatus.Survived || result == ExitStatus.Runner;
         if ((result != ExitStatus.Killed && !extracting) ||
@@ -261,6 +282,11 @@ public sealed partial class Plugin : BaseUnityPlugin
 
     private void Update()
     {
+        if (_fika != null)
+        {
+            if (_cameraActive && (!_camera.Ready || _world == null || _world != Singleton<GameWorld>.Instance)) Reset();
+            return; // Fika's camera Update supplies the active local view.
+        }
         if (_session.Phase == SessionPhase.Idle) return;
         var world = Singleton<GameWorld>.Instance;
         if (_game == null || _world == null || !ReferenceEquals(world, _world) || _game.Status == GameStatus.Stopped)
@@ -285,7 +311,14 @@ public sealed partial class Plugin : BaseUnityPlugin
             return;
         }
         if (!_cameraActive) return;
-        if (!ConfigurationIsOpen() && (Input.GetKeyDown(KeyCode.Escape) || _settings.MenuKey.Value.IsDown())) _menuOpen = !_menuOpen;
+        UpdateCamera(world);
+    }
+
+    private void UpdateCamera(GameWorld world)
+    {
+        bool menuPressed = _fika != null && _settings.MenuKey.Value.MainKey == KeyCode.Escape
+            ? Input.GetKeyDown(KeyCode.F6) : _settings.MenuKey.Value.IsDown();
+        if (!ConfigurationIsOpen() && (menuPressed || (_fika == null && Input.GetKeyDown(KeyCode.Escape)))) _menuOpen = !_menuOpen;
         // Apply immediately, before the dependency's Update can process a menu click as camera movement.
         _camera.SetMenu(CameraMenu, _navigator.Following);
         _navigator.SetFilter(_settings.Targets.Value);
@@ -309,7 +342,7 @@ public sealed partial class Plugin : BaseUnityPlugin
             _lastOverlay = _settings.Overlay.Value;
             ApplyOverlay(_lastOverlay);
         }
-        if (_botDebugReady) _overlay.ObserveBotDebug(_botDebug.Enabled);
+        if (CanUseBotDebug) _overlay.ObserveBotDebug(_botDebug.Enabled);
         if (!CameraMenu && _settings.BotInfoKey.Value.IsDown())
         {
             _overlay.ToggleBotInfo();
@@ -383,6 +416,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         _navigator.Reset();
         _roster.Clear();
         _labels?.Clear();
+        _fikaFeed?.ClearClient();
         _botData?.Clear();
         _listPanel.Reset();
         _listScroll = Vector2.zero;
@@ -489,10 +523,13 @@ public sealed partial class Plugin : BaseUnityPlugin
         return false;
     }
 
-    private static IEnumerable<CodeInstruction> FreecamAxisTranspiler(IEnumerable<CodeInstruction> instructions)
+    private static IEnumerable<CodeInstruction> FreecamAxisTranspiler(IEnumerable<CodeInstruction> instructions) =>
+        ReplaceWheelInput(instructions, nameof(Input.GetAxis), nameof(ReadFreecamAxis));
+
+    private static IEnumerable<CodeInstruction> ReplaceWheelInput(IEnumerable<CodeInstruction> instructions, string axisMethod, string reader)
     {
-        var read = AccessTools.Method(typeof(Input), nameof(Input.GetAxis), new[] { typeof(string) });
-        var replacement = AccessTools.Method(typeof(Plugin), nameof(ReadFreecamAxis));
+        var read = AccessTools.Method(typeof(Input), axisMethod, new[] { typeof(string) });
+        var replacement = AccessTools.Method(typeof(Plugin), reader);
         int count = 0;
         foreach (var instruction in instructions)
         {
@@ -512,8 +549,10 @@ public sealed partial class Plugin : BaseUnityPlugin
         return SpectatorWheel.Route(CameraWatching, CameraMenu, held, _settings.CycleBots.Value);
     }
 
-    private static float ReadFreecamAxis(string axis) => axis == "Mouse ScrollWheel" &&
-        _instance?.CameraWatching == true && _instance.WheelAction() != SpectatorWheelAction.Native ? 0f : Input.GetAxis(axis);
+    private static bool ConsumeWheel(string axis) => axis == "Mouse ScrollWheel" &&
+        _instance?.CameraWatching == true && _instance.WheelAction() != SpectatorWheelAction.Native;
+
+    private static float ReadFreecamAxis(string axis) => ConsumeWheel(axis) ? 0f : Input.GetAxis(axis);
 
     private void VisitBot(int direction)
     {
@@ -526,10 +565,10 @@ public sealed partial class Plugin : BaseUnityPlugin
         catch (Exception e) { Logger.LogWarning($"Could not visit bot; Freecam remains available: {e.Message}"); }
     }
 
-    private static bool FreecamInputPrefix(FreecamController __instance) =>
+    private static bool FreecamInputPrefix(Behaviour __instance) =>
         _instance == null || !_instance.CameraWatching || !ReferenceEquals(_instance._camera.Controller, __instance);
 
-    private static bool FreecamActivePrefix(FreecamController __instance, ref bool __result)
+    private static bool FreecamActivePrefix(Behaviour __instance, ref bool __result)
     {
         if (_instance == null || !_instance.CameraWatching || !ReferenceEquals(_instance._camera.Controller, __instance)) return true;
         // Opening our menu pauses Freecam input, not camera ownership (or ForceSetPosition
@@ -627,8 +666,8 @@ public sealed partial class Plugin : BaseUnityPlugin
         if (_menuOpen)
         {
             _menuScroll = GUILayout.BeginScrollView(_menuScroll, _horizontalScrollbar, _verticalScrollbar);
-            GUILayout.Label(_session.Extracted ? "You extracted. The raid continues." : "You died. The raid continues.", _textStyle);
-            GUILayout.Label($"Leave raid to save your original {SavedResult} result.", _textStyle);
+            GUILayout.Label(_fika != null ? "Use Fika's extract shortcut to leave the raid." :
+                $"Leave raid to save your original {SavedResult} result.", _textStyle);
             GUILayout.Space(12 * scale);
             GUILayout.Label("Visit a bot", _titleStyle);
             int filter = GUILayout.SelectionGrid(_settings.Targets.Value == BotFilter.AllBots ? 1 : 0, TargetLabels, 2, _buttonStyle, GUILayout.Height(30 * scale));
@@ -661,13 +700,13 @@ public sealed partial class Plugin : BaseUnityPlugin
             if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.Off ? "[Off]" : "Off", _buttonStyle)) ChooseOverlay(SpectatorOverlay.Off);
             if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotInfo ? "[Bot info]" : "Bot info", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotInfo);
             bool oldEnabled = GUI.enabled;
-            GUI.enabled = oldEnabled && _botDebugReady;
+            GUI.enabled = oldEnabled && CanUseBotDebug;
             if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotDebug ? "[BotDebug]" : "BotDebug", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotDebug);
             GUI.enabled = oldEnabled;
             GUILayout.EndHorizontal();
             if (_settings.BotInfoKey.Value.MainKey != KeyCode.None)
                 GUILayout.Label($"{_settings.BotInfoKey.Value}: show / hide Bot info", _textStyle);
-            if (!_botDebugReady) GUILayout.Label(_botDebugStatus, _textStyle);
+            if (!CanUseBotDebug) GUILayout.Label(_fika != null && !_fika.IsHost() ? "Use Bot info for replicated bots." : _botDebugStatus, _textStyle);
             if (_overlay.Mode == SpectatorOverlay.BotInfo)
             {
                 GUILayout.Label("Bot info: name, health, personality, carried value and current action.", _textStyle);
@@ -681,12 +720,14 @@ public sealed partial class Plugin : BaseUnityPlugin
             GUILayout.EndScrollView();
             GUILayout.Space(10 * scale);
             if (GUILayout.Button("Resume camera", _buttonStyle, GUILayout.Height(34 * scale))) { _menuOpen = false; _camera.SetMenu(false, _navigator.Following); }
-            if (GUILayout.Button("Leave raid", _buttonStyle, GUILayout.Height(34 * scale))) LeaveRaid("button");
+            if (_fika == null && GUILayout.Button("Leave raid", _buttonStyle, GUILayout.Height(34 * scale))) LeaveRaid("button");
         }
         else
         {
             var infoKey = _settings.BotInfoKey.Value;
-            GUILayout.Label(infoKey.MainKey == KeyCode.None ? "Esc: menu / Leave raid" : $"Esc: menu / Leave raid | {infoKey}: Bot info", _textStyle);
+            string menu = _fika == null ? "Esc: menu / Leave raid" :
+                (_settings.MenuKey.Value.MainKey == KeyCode.Escape ? "F6" : _settings.MenuKey.Value.ToString()) + ": HORIZON menu";
+            GUILayout.Label(infoKey.MainKey == KeyCode.None ? menu : $"{menu} | {infoKey}: Bot info", _textStyle);
             if (_settings.CycleBots.Value) GUILayout.Label(_navigator.Caption, _textStyle);
             GUILayout.Label($"{_settings.FollowKey.Value}: {(_navigator.Following ? "stop following" : "follow bot")} | Hold Left Alt to drag", _textStyle);
             if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: {(_navigator.LockOrientation ? "bot view" : "mouse orbit")}", _textStyle);
@@ -702,10 +743,13 @@ public sealed partial class Plugin : BaseUnityPlugin
 
     private void OnDestroy()
     {
+        _fikaFeed?.Dispose();
+        _fikaFeed = null;
         if (!_quitting && _session.Watching && _game != null) LeaveRaid("plugin-unload");
         Reset();
         _harmony.UnpatchSelf();
         BotDebugHooks.Remove();
+        PmcNavigator.IsObservedBot = null;
         if (_panelTexture != null) Destroy(_panelTexture);
         if (_labelDashes != null) Destroy(_labelDashes);
         if (ReferenceEquals(_instance, this)) _instance = null;

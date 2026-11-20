@@ -87,7 +87,8 @@ internal sealed class PmcNavigator
         return FollowTransition.None;
     }
 
-    internal static bool IsLivingBot(Player player) => player != null && player.IsAI && !player.IsYourPlayer &&
+    internal static Func<Player, bool>? IsObservedBot;
+    internal static bool IsLivingBot(Player player) => player != null && !player.IsYourPlayer && (player.IsAI || IsObservedBot?.Invoke(player) == true) &&
         player.HealthController?.IsAlive == true && player.gameObject.activeInHierarchy && !string.IsNullOrEmpty(player.ProfileId);
 
     // The list deliberately includes all bot types, independently of the wheel filter.

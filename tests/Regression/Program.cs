@@ -185,10 +185,50 @@ Check(entry.Methods.Single(m => m.Name == "PlayerTickPrefix").Body.Instructions.
 Check(entry.Methods.Single(m => m.Name == "TryWatch").Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "MaintainPhysics"), "Physics starts at entry, not after Killcam");
 Check(!plugin.MainModule.GetMemberReferences().OfType<MethodReference>().Any(m => m.DeclaringType.FullName == "UnityEngine.Physics" && new[] { "Simulate", "set_autoSyncTransforms", "set_simulationMode" }.Contains(m.Name)), "No forced simulation or global physics setting mutation");
 var dep = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInDependency" && (string)a.ConstructorArguments[0].Value == "com.terkoiz.freecam");
-Check((string)dep.ConstructorArguments[0].Value == "com.terkoiz.freecam" && (string)dep.ConstructorArguments[1].Value == "1.4.8", "Required Freecam version");
+Check(Convert.ToInt32(dep.ConstructorArguments[1].Value) == 2, "Fika clients can load without Terkoiz Freecam");
 var incompatibilities = entry.CustomAttributes.Where(a => a.AttributeType.Name == "BepInIncompatibility")
     .Select(a => (string)a.ConstructorArguments[0].Value).ToArray();
-Check(incompatibilities.Contains("com.fika.core"), "Loader refuses Fika");
+Check(!incompatibilities.Contains("com.fika.core") && entry.CustomAttributes.Any(a => a.AttributeType.Name == "BepInDependency" &&
+    (string)a.ConstructorArguments[0].Value == "com.fika.core" && Convert.ToInt32(a.ConstructorArguments[1].Value) == 2), "Fika is an optional camera provider");
+Check(!plugin.MainModule.AssemblyReferences.Any(a => a.Name == "Fika.Core" || a.Name == "Terkoiz.Freecam"), "Mono can load HORIZON with either provider absent");
+Check(!entry.Methods.Single(m => m.Name == "InstallFikaCamera").Body.Instructions.Any(i =>
+    i.Operand is TypeReference t && (t.FullName.Contains("LocalGame") || t.FullName.Contains("HealthController"))), "Co-op does not install native solo lifecycle patches");
+string fikaPath = args.Length > 1 ? args[1] : Path.Combine(root, "BepInEx/plugins/Fika.Core.dll");
+if (args.Length > 1 || File.Exists(fikaPath))
+{
+    using var fika = AssemblyDefinition.ReadAssembly(fikaPath);
+    var camera = fika.MainModule.GetType("Fika.Core.Main.FreeCamera.FreeCamera");
+    var backend = fika.MainModule.GetType("Fika.Core.Main.Utils.FikaBackendUtils");
+    bool BoolGetter(TypeDefinition t, string name, bool isStatic = false) => t.Properties.Any(p =>
+        p.Name == name && p.GetMethod.IsPublic && p.GetMethod.IsStatic == isStatic && p.PropertyType.FullName == "System.Boolean");
+    foreach (var name in new[] { "IsHeadless", "IsServer", "IsTransit" }) Check(BoolGetter(backend, name, true), "Fika role " + name);
+    foreach (var name in new[] { "IsActive", "Extracted" }) Check(BoolGetter(camera, name), "Fika camera state " + name);
+    var settings = fika.MainModule.GetType("Fika.Core.FikaPlugin").Properties.Single(p => p.Name == "Settings").PropertyType.Resolve();
+    Check(BoolGetter(settings, "AllowSpectateBots") && BoolGetter(settings, "AllowSpectateFreeCam"), "Fika server spectator settings");
+    Check(camera.Methods.Any(m => m.Name == "DetachCamera" && m.IsPublic && !m.IsStatic && m.Parameters.Count == 0), "Fika camera detach API");
+    Check(new[] { "_isFollowing", "_disableInput" }.All(n => camera.Fields.Any(f => f.Name == n && f.FieldType.FullName == "System.Boolean")) &&
+        new[] { "_yaw", "_pitch" }.All(n => camera.Fields.Any(f => f.Name == n && f.FieldType.FullName == "System.Single")), "Fika native look fields");
+    Check(camera.Methods.Single(m => m.Name == "Update").Body.Instructions.Any(i => i.Operand is MethodReference m &&
+        m.DeclaringType.FullName == "UnityEngine.Input" && m.Name == "GetAxisRaw"), "Fika camera exposes the wheel used by the patch");
+    Check(fika.MainModule.GetType("Fika.Core.Main.Players.FikaPlayer").Fields.Any(f =>
+        f.Name == "IsObservedAI" && f.IsPublic && f.FieldType.FullName == "System.Boolean"), "Fika replicates the AI marker");
+    var server = fika.MainModule.GetType("Fika.Core.Networking.FikaServer");
+    var settingsHandler = server.Methods.Single(m => m.Name == "OnNetworkSettingsPacketReceived");
+    Check(settingsHandler.Parameters.Select(p => p.Name).SequenceEqual(new[] { "packet", "peer" }) &&
+        server.Fields.Any(f => f.Name == "_cachedConnections" && f.FieldType.FullName == "System.Collections.Generic.Dictionary`2<System.String,System.Int32>") &&
+        settingsHandler.Body.Instructions.Any(i => i.Operand is FieldReference f && f.Name == "_cachedConnections"),
+        "Fika connects the actual peer and its assigned player ID before the HORIZON postfix");
+    Check(server.Methods.Single(m => m.Name == "OnNetworkReceive").Parameters.Take(2).Select(p => p.Name)
+        .SequenceEqual(new[] { "peer", "reader" }), "Fika server discovery hook parameters");
+    var packetKinds = fika.MainModule.GetType("Fika.Core.Networking.NetworkUtils").NestedTypes.Single(t => t.Name == "EPacketType");
+    Check(!packetKinds.Fields.Any(f => f.HasConstant && Convert.ToInt32(f.Constant) == 0xDA), "HORIZON discovery envelope is unused by this Fika build");
+    var startup = entry.Methods.Single(m => m.Name == "Awake").Body.Instructions
+        .Where(i => i.Operand is MethodReference).Select(i => (MethodReference)i.Operand).ToList();
+    int feedStartup = startup.FindIndex(m => m.DeclaringType.Name == "FikaBotFeed" && m.Name == "Load");
+    Check(feedStartup >= 0 && feedStartup < startup.FindIndex(m => m.Name == "get_isBatchMode"),
+        "Headless hosts initialize action sync before the camera is disabled");
+    Console.WriteLine("Checked co-op camera and network contracts against " + fikaPath);
+}
 Check(incompatibilities.Contains("com.chazut.raidspectator"), "Loader refuses concurrent legacy Raid Spectator installation");
 var killcamDep = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInDependency" && (string)a.ConstructorArguments[0].Value == "com.maschine.Killcam");
 Check(Convert.ToInt32(killcamDep.ConstructorArguments[1].Value) == 2, "Killcam remains an optional dependency");

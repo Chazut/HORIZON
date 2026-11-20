@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <SptRoot Condition="'$(SptRoot)' == ''">C:\Games\SPT-4.1</SptRoot>
+    <FikaPath Condition="'$(FikaPath)' == ''">$(SptRoot)/BepInEx/plugins/Fika.Core.dll</FikaPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../fika/ActionProtocol.cs" Link="Production/ActionProtocol.cs" />
+    <Compile Include="../../src/BotLabelSample.cs" Link="Production/BotLabelSample.cs" />
+    <Reference Include="Fika.Core" HintPath="$(FikaPath)" />
+  </ItemGroup>
+</Project>

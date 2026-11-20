@@ -17,13 +17,13 @@ Before release, verify in real raids:
 4. Let the raid timer expire after dying: normal shutdown still reports Killed.
 5. Extract normally, then separately with a run-through: observe for several minutes and leave. Verify original result, exit, inventory, health and play time. Bots must ignore the extracted body. Test transit too; it must not open spectator mode. Play another raid without restarting to check cleanup.
 6. Try dying with inventory open, without ORBIT, and as a player Scav.
-7. Check Fika/missing Freecam loader refusal and camera-not-ready fallback.
+7. In solo, check missing Freecam and camera-not-ready fallback. For co-op, use the Fika checks below.
 8. Die with Killcam enabled: let the replay and live tail finish, then check Freecam and Leave raid. Repeat without a replay (for example, no killer recording). The replay must not fight the spectator camera.
 
 9. Scroll both directions with several PMCs alive, then after the selected PMC dies/extracts. In PMCs only, no Scavs/bosses/humans should be selected. In All bots, living AI Scavs/bosses/guards should be selectable too, but not humans or corpses. Switch filters during the same raid. The player body must never move. Check indoors camera placement.
 10. Bot info is the default overlay on a fresh install; BotDebug stays off. With BotDebug installed, verify the exclusive overlay selector, migration of the old automatic preference, and shutdown on leave. Without it, the menu must show unavailable and spectating must still work. Open Escape/F12: scrolling menus must not switch PMCs.
 
-11. After death and extraction, keep observing for at least five minutes with the camera away from several moving bots. Check both PMC and Scav movement, stairs/doors and ground support. Open the spectator menu and wait through Killcam too. `Spectator physics` should show increasing synchronization counts with `autoSync=False`; `staleBounds` should remain zero. A warning can also describe a legitimate prolonged hold while the mover still requests movement, so review its context. Repeat without ORBIT/COMET when comparing vanilla behavior. Fika remains incompatible with this solo plugin.
+11. In solo, keep observing for at least five minutes after death and extraction with the camera away from moving bots. Check PMC and Scav movement, stairs, doors and ground support. Open the spectator menu and wait through Killcam. `Spectator physics` should show increasing synchronization counts with `autoSync=False` and zero stale bounds.
 12. With BotDebug 1.8.0, extract with bots still alive and confirm labels appear (not just the Enabled toggle). Move Freecam far from the extraction point and cycle PMCs: labels and their distances must follow the camera. Test manual enable with automatic activation off, death after Killcam, disabling/re-enabling BotDebug and a second raid. `BotDebug spectator data active` confirms the first populated snapshot; absence of this message with only dormant bots is not a rendering failure.
 
 Look for `[HORIZON]` in `BepInEx/LogOutput.log`. In addition to entry/exit messages, a physics summary every 30 seconds records synchronization cost and stale collider bounds. Checks every 5 seconds report severe falls, movement without displacement and stale bounds (at most once per bot per 30 seconds). These observations do not change bot behavior. There is no per-frame file output.
@@ -47,7 +47,19 @@ Look for `[HORIZON]` in `BepInEx/LogOutput.log`. In addition to entry/exit messa
 - Test scrolling/dragging at 1080p, ultrawide and 4K with help hidden, labels off, BotDebug on, and the menu overlapping the list. Clicks over the menu must not activate list rows behind it. F12 input stays reserved. Saved list position is independent of menu/help position.
 - Logs are limited to integration availability, overlay choices, manual list visits and target-loss transitions; integration failures warn once per raid. No per-bot snapshot spam is added. Console tests do not validate native IMGUI rendering or real game performance.
 
-## Raid lifecycle
+## Fika
+
+To include the co-op binary checks, run `dotnet run --project tests/Regression -c Release -- <SPT folder> <path to Fika.Core.dll>`. The camera harness exercises the spectator controls and server permissions with test doubles.
+
+Run `./package.ps1 -SptRoot <SPT folder> -FikaPath <path to Fika.Core.dll>` to build both DLLs and run the UDP loopback regression against the supplied Fika library. It exercises a host and two peers, action changes, health and loot, guest eligibility, stale replies and an unmodified host.
+
+For a live check, connect two graphical players to a hosted raid. Repeat with a headless host. Enable free-camera and bot spectating in the Fika server settings.
+
+- While both players are alive, verify HORIZON stays inactive. After one dies or extracts, check that only their screen gets the controls and the other player can finish the raid. Verify the F6 menu, bot cycling, F3 labels and Fika's extract key.
+- Install RC2 on the graphical or headless raid host and the spectating client. Watch one bot through two different actions. Check that its F3 action updates on the joining player's screen, including with an AI mod running on the host. Check damage and loot changes. Repeat after extraction, an ordinary death, reconnect and with a second spectator. On a graphical host, compare labels on the same bot when both cameras are available.
+- Change either spectator permission and verify the native Fika restrictions. Check automatic extraction, transit, revive, disconnect and a second raid for stale overlays or input. Compare each player's saved outcome to their own exit.
+
+## Solo raid lifecycle
 
 The plugin delays the local death shutdown before `LocalGame.Stop` stops bot scenarios. It lets the real death callbacks, corpse creation and kill tracking run. Exit and timeout resume the native game shutdown and SPT profile-saving flow with the captured outcome. Extraction is intercepted at the same shutdown boundary after the game has decided Survived/Runner. The extracted body is removed from the world/AI player lists and deactivated (with its camera detached if necessary), without killing it or unloading its profile. Entry failures restore the touched state and allow the native ending. Freecam supplies the camera and its controls; it is not bundled or modified.
 

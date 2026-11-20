@@ -9,9 +9,9 @@
 
 **Your raid ends. The world keeps going.**
 
-Keep watching your solo SPT raid after death or extraction. Fly freely around the map and see what the bots do next.
+Keep watching your SPT raid after death or extraction. Fly around the map and see what the bots do next.
 
-**HORIZON 1.2.0 for SPT 4.1.6. Requires a solo installation without Fika.**
+**HORIZON 1.3.0 RC2 for SPT 4.1.6.** Solo uses Terkoiz Freecam 1.4.8 or later. Co-op uses Fika's built-in spectator camera.
 
 ## What it does
 
@@ -31,8 +31,8 @@ Transits work normally. The raid timer still applies.
 
 ## Install
 
-1. Install **Terkoiz Freecam 1.4.8 or later**. HORIZON will not load without it.
-2. Extract the HORIZON archive into your SPT folder. The plugin is `BepInEx/plugins/HORIZON/HORIZON.dll`.
+1. For solo SPT, install **Terkoiz Freecam 1.4.8 or later**. Fika already provides its own camera.
+2. Extract the full HORIZON archive into your SPT game folder. Keep both DLLs together in `BepInEx/plugins/HORIZON/`. In Fika, install the same ZIP on the raid host and each player PC that will use HORIZON. If a headless client runs the raid, install it in that client's game folder. The SPT backend needs no installation.
 3. Open **F12 > HORIZON** to change your settings.
 
 Plugin GUID: `com.chazut.horizon`. Settings are saved in `BepInEx/config/com.chazut.horizon.cfg`; older Raid Spectator settings are imported automatically on first launch.
@@ -42,6 +42,8 @@ Updating from a build installed in `BepInEx/plugins/RaidSpectator`? Remove that 
 ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectators** to observe awake bots.
 
 ## Controls
+
+**Fika:** When the server allows free-camera and bot spectating, press **F3** after death or extraction to see BotInfo. The raid host reads each visible bot's current action, SAIN personality, ORBIT Ghost state, health and estimated carried value and sends them to the requesting spectator. AI mod integrations use the mods installed on the raid host. The graphical host can keep playing while a teammate spectates. Without a compatible host, the overlay shows "Host action unavailable". The separate BotDebug overlay runs on the graphical host only. Open HORIZON's menu with **F6** and use Fika's extract shortcut (**F8** by default) to leave.
 
 Use Freecam's usual movement controls. **Mouse wheel** visits bots; **Escape** opens the spectator menu, where you can change the bot filter, toggle BotDebug or choose **Leave raid** to save and exit.
 
