@@ -56,7 +56,8 @@ public sealed partial class Plugin
             if (_cameraActive && ReferenceEquals(script, _camera.Script)) Reset();
             return true;
         }
-        if (!_cameraActive || _camera.Script != script || _world != world)
+        bool allowBots = _fika.AllowSpectateBots();
+        if (!_cameraActive || _camera.Script != script || _world != world || _botToolsEnabled != allowBots)
         {
             if (_cameraActive) Reset();
             var camera = script.GetComponent<Camera>();
@@ -64,14 +65,18 @@ public sealed partial class Plugin
             _camera.AttachFika(script, camera, rotation => _fika.Align(script, rotation));
             _world = world;
             _cameraActive = true;
-            BindBotInformation();
-            if (CanUseBotDebug)
+            _botToolsEnabled = allowBots;
+            if (allowBots)
             {
-                _botDebugView.Attach(world, world.MainPlayer, camera);
-                _botDebug.BeginSession();
+                BindBotInformation();
+                if (CanUseBotDebug)
+                {
+                    _botDebugView.Attach(world, world.MainPlayer, camera);
+                    _botDebug.BeginSession();
+                }
+                _lastOverlay = _settings.Overlay.Value;
+                ApplyOverlay(_lastOverlay);
             }
-            _lastOverlay = _settings.Overlay.Value;
-            ApplyOverlay(_lastOverlay);
         }
         UpdateCamera(world);
         // Fika handles its own Home input toggle even while HORIZON is following a bot.

@@ -2,7 +2,7 @@
 
 Did the PMC who killed you make it to extract? HORIZON lets you watch your SPT raid after death or extraction. Fly back to the fight, follow a squad or watch the bots loot what's left.
 
-**HORIZON 1.3.0 RC1 for SPT 4.1.6.** Fika uses its native spectator camera. For solo SPT, install [Terkoiz Freecam 1.4.8 or later](https://sp-mod.com/mod/164/freecam).
+**HORIZON 1.3.0 RC2 for SPT 4.1.6.** Fika uses its native spectator camera. For solo SPT, install [Terkoiz Freecam 1.4.8 or later](https://sp-mod.com/mod/164/freecam).
 
 ## HORIZON {.tabset}
 
@@ -12,7 +12,7 @@ Did the PMC who killed you make it to extract? HORIZON lets you watch your SPT r
 - **Pick out a squad.** PMC squadmates share a label color. A dotted line connects each label to its bot, even at a distance. Turn on the optional **Show bot list** and click a name to visit that squad member.
 - **Follow the fight.** Fly freely or attach the camera to a bot. When that bot dies or extracts, the camera stays where you last saw it. You can enable automatic switching if you'd like to follow someone else immediately.
 
-In solo, choose **Leave raid** in the spectator menu to save your original result, loot and play time. In co-op, Fika handles the result and the exit shortcut (default **F8**). HORIZON follows the server's free-camera and bot-spectating settings. Killcam can finish its replay before HORIZON starts.
+In solo, choose **Leave raid** in the spectator menu to save your original result, loot and play time. In co-op, Fika handles the result and the exit shortcut (default **F8**). Enable `allowSpectateFreeCam` for HORIZON's **F6** menu and zoom. Enable `allowSpectateBots` as well for bot labels, the bot list and following. Killcam can finish its replay before HORIZON starts.
 
 ### Installation
 

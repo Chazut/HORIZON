@@ -17,7 +17,7 @@ var bystander = new NetManager(bystanderEvents);
 var authority = new NetPacketProcessor();
 var spectator = new NetPacketProcessor();
 var cache = new ClientActions();
-bool ready = false, modInstalled = false, extracted = false, alive = true;
+bool ready = false, modInstalled = false, extracted = false, alive = true, allowBots = true;
 int probes = 0, replies = 0, otherPackets = 0, queries = 0;
 float now = 1;
 string action = "COMET: Crossfire";
@@ -50,7 +50,7 @@ bystanderEvents.NetworkReceiveEvent += (_, _, _, _) => otherPackets++;
 authority.SubscribeNetSerializable<Query, NetPeer>((request, peer) =>
 {
     queries++;
-    if (!Audience.Allows(true, true, false, extracted, alive)) return;
+    if (!Audience.Allows(true, allowBots, false, extracted, alive)) return;
     lastReply = new Reply { Query = request, Profile = profile, Action = action, Personality = "Aggressive", Ghost = ghost,
         Health = ghost ? (200f, 440f) : (395f, 440f), Value = ghost ? 0d : 51000d };
     Send(authority, peer, false, lastReply);
@@ -118,6 +118,11 @@ try
     var wrong = lastReply; wrong.Query = fresh!.Value; wrong.Profile = "despawned-bot";
     cache.Receive(wrong, now);
     Check(!cache.Read(42, profile, now, out _).FromHost, "another profile cannot inherit the label");
+    allowBots = false;
+    extracted = true;
+    Send(spectator, guest.FirstPeer, true, fresh.Value);
+    WaitFor(() => queries == 5, "host checked a freecam-only spectator request");
+    Check(lastReply.Query.Ticket != fresh.Value.Ticket && replies == 2, "freecam-only spectator received no bot action");
     Check(!Audience.Allows(false, true, false, true, true) && !Audience.Allows(true, false, false, false, false) &&
           !Audience.Allows(true, true, true, true, false) && !Audience.Allows(true, true, false, false, null),
           "server permissions, transit and unknown viewer");

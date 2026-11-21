@@ -13,7 +13,7 @@ using UnityEngine;
 
 namespace Horizon;
 
-[BepInPlugin(Id, "HORIZON", "1.3.0.1")]
+[BepInPlugin(Id, "HORIZON", "1.3.0.2")]
 [BepInDependency("com.terkoiz.freecam", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("com.fika.core", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(KillcamBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
@@ -50,6 +50,7 @@ public sealed partial class Plugin : BaseUnityPlugin
     private BotLabels _labels = null!;
     private FikaSpectator? _fika;
     private FikaBotFeed? _fikaFeed;
+    private bool _botToolsEnabled = true; // Solo permits bot spectating; Fika sets this on camera attachment.
     private bool CanUseBotDebug => _botDebugReady && (_fika == null || _fika.IsHost());
     private bool CameraWatching => _cameraActive && (_fika != null || _session.Watching);
     private bool Extracted => _session.Extracted && _player != null;
@@ -321,10 +322,13 @@ public sealed partial class Plugin : BaseUnityPlugin
         if (!ConfigurationIsOpen() && (menuPressed || (_fika == null && Input.GetKeyDown(KeyCode.Escape)))) _menuOpen = !_menuOpen;
         // Apply immediately, before the dependency's Update can process a menu click as camera movement.
         _camera.SetMenu(CameraMenu, _navigator.Following);
-        _navigator.SetFilter(_settings.Targets.Value);
-        if (!_menuOpen && !ConfigurationIsOpen() && _settings.FollowKey.Value.IsDown()) ToggleFollow();
-        if (!CameraMenu && _navigator.Following && _settings.OrientationKey.Value.IsDown()) _navigator.ToggleOrientation();
-        if (!CameraMenu) _navigator.Rotate(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"), _settings.OrbitSensitivity.Value);
+        if (_botToolsEnabled)
+        {
+            _navigator.SetFilter(_settings.Targets.Value);
+            if (!_menuOpen && !ConfigurationIsOpen() && _settings.FollowKey.Value.IsDown()) ToggleFollow();
+            if (!CameraMenu && _navigator.Following && _settings.OrientationKey.Value.IsDown()) _navigator.ToggleOrientation();
+            if (!CameraMenu) _navigator.Rotate(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"), _settings.OrbitSensitivity.Value);
+        }
         var wheelAction = WheelAction();
         if (wheelAction == SpectatorWheelAction.Zoom || wheelAction == SpectatorWheelAction.Cycle)
         {
@@ -336,6 +340,7 @@ public sealed partial class Plugin : BaseUnityPlugin
                 else _camera.Zoom(wheel, _settings.ZoomSpeed.Value);
             }
         }
+        if (!_botToolsEnabled) return;
         // A manual BotDebug toggle remains active until the overlay choice changes.
         if (_settings.Overlay.Value != _lastOverlay)
         {
@@ -358,7 +363,7 @@ public sealed partial class Plugin : BaseUnityPlugin
     {
         if (!CameraWatching) return;
         _camera.MaintainEffects();
-        if (_world != null)
+        if (_botToolsEnabled && _world != null)
         {
             var transition = _navigator.Follow(_world, _camera, _settings.VisitDistance.Value, _settings.AutoSwitchOnDeath.Value);
             if (transition != FollowTransition.None)
@@ -546,7 +551,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         // Movement keys may stay held while zooming. Only the configured keys
         // are required; unrelated held keys do not cancel the shortcut.
         foreach (var modifier in shortcut.Modifiers) held &= Input.GetKey(modifier);
-        return SpectatorWheel.Route(CameraWatching, CameraMenu, held, _settings.CycleBots.Value);
+        return SpectatorWheel.Route(CameraWatching, CameraMenu, held, _botToolsEnabled && _settings.CycleBots.Value);
     }
 
     private static bool ConsumeWheel(string axis) => axis == "Mouse ScrollWheel" &&
@@ -620,8 +625,8 @@ public sealed partial class Plugin : BaseUnityPlugin
             _panelTexture.SetPixel(0, 0, new Color(0.055f, 0.07f, 0.09f, 0.94f));
             _panelTexture.Apply();
         }
-        if (_overlay.Mode == SpectatorOverlay.BotInfo) DrawBotLabels(scale);
-        if (_settings.ShowBotList.Value) DrawBotList(scale);
+        if (_botToolsEnabled && _overlay.Mode == SpectatorOverlay.BotInfo) DrawBotLabels(scale);
+        if (_botToolsEnabled && _settings.ShowBotList.Value) DrawBotList(scale);
         else _listPanel.Reset();
         if (!_menuOpen && !_settings.ShowHelp.Value) return;
         float marginX = 16 * scale, marginY = 20 * scale;
@@ -669,21 +674,25 @@ public sealed partial class Plugin : BaseUnityPlugin
             GUILayout.Label(_fika != null ? "Use Fika's extract shortcut to leave the raid." :
                 $"Leave raid to save your original {SavedResult} result.", _textStyle);
             GUILayout.Space(12 * scale);
-            GUILayout.Label("Visit a bot", _titleStyle);
-            int filter = GUILayout.SelectionGrid(_settings.Targets.Value == BotFilter.AllBots ? 1 : 0, TargetLabels, 2, _buttonStyle, GUILayout.Height(30 * scale));
-            _settings.Targets.Value = filter == 1 ? BotFilter.AllBots : BotFilter.PmcOnly;
-            _navigator.SetFilter(_settings.Targets.Value);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Previous", _buttonStyle, GUILayout.Height(30 * scale))) VisitBot(-1);
-            if (GUILayout.Button("Next", _buttonStyle, GUILayout.Height(30 * scale))) VisitBot(1);
-            GUILayout.EndHorizontal();
-            GUILayout.Label(_navigator.Caption, _textStyle);
-            if (GUILayout.Button(_navigator.Following ? "Stop following" : "Follow selected bot", _buttonStyle, GUILayout.Height(30 * scale))) ToggleFollow();
-            if (_navigator.Following && GUILayout.Button(_navigator.LockOrientation ? "Orientation: bot view" : "Orientation: mouse orbit", _buttonStyle, GUILayout.Height(30 * scale))) _navigator.ToggleOrientation();
-            if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: toggle orientation / mouse orbit", _textStyle);
-            GUILayout.Label($"{_settings.FollowKey.Value}: follow / free camera. Drag the title to move this menu.", _textStyle);
-            _settings.CycleBots.Value = GUILayout.Toggle(_settings.CycleBots.Value, "Switch bots with the mouse wheel", _toggleStyle);
-            _settings.AutoSwitchOnDeath.Value = GUILayout.Toggle(_settings.AutoSwitchOnDeath.Value, "Auto-switch when followed bot dies", _toggleStyle);
+            if (_botToolsEnabled)
+            {
+                GUILayout.Label("Visit a bot", _titleStyle);
+                int filter = GUILayout.SelectionGrid(_settings.Targets.Value == BotFilter.AllBots ? 1 : 0, TargetLabels, 2, _buttonStyle, GUILayout.Height(30 * scale));
+                _settings.Targets.Value = filter == 1 ? BotFilter.AllBots : BotFilter.PmcOnly;
+                _navigator.SetFilter(_settings.Targets.Value);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Previous", _buttonStyle, GUILayout.Height(30 * scale))) VisitBot(-1);
+                if (GUILayout.Button("Next", _buttonStyle, GUILayout.Height(30 * scale))) VisitBot(1);
+                GUILayout.EndHorizontal();
+                GUILayout.Label(_navigator.Caption, _textStyle);
+                if (GUILayout.Button(_navigator.Following ? "Stop following" : "Follow selected bot", _buttonStyle, GUILayout.Height(30 * scale))) ToggleFollow();
+                if (_navigator.Following && GUILayout.Button(_navigator.LockOrientation ? "Orientation: bot view" : "Orientation: mouse orbit", _buttonStyle, GUILayout.Height(30 * scale))) _navigator.ToggleOrientation();
+                if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: toggle orientation / mouse orbit", _textStyle);
+                GUILayout.Label($"{_settings.FollowKey.Value}: follow / free camera. Drag the title to move this menu.", _textStyle);
+                _settings.CycleBots.Value = GUILayout.Toggle(_settings.CycleBots.Value, "Switch bots with the mouse wheel", _toggleStyle);
+                _settings.AutoSwitchOnDeath.Value = GUILayout.Toggle(_settings.AutoSwitchOnDeath.Value, "Auto-switch when followed bot dies", _toggleStyle);
+            }
+            else GUILayout.Label("Bot spectating is disabled on this Fika server.", _textStyle);
             GUILayout.Label(ZoomHint, _textStyle);
             GUILayout.Space(10 * scale);
             GUILayout.Label("Interface size", _titleStyle);
@@ -695,26 +704,29 @@ public sealed partial class Plugin : BaseUnityPlugin
             GUILayout.EndHorizontal();
             if (GUILayout.Button("Reset interface size", _buttonStyle, GUILayout.Height(30 * scale))) { _settings.AutomaticScale.Value = true; _settings.InterfaceScale.Value = 1; }
             GUILayout.Space(10 * scale);
-            GUILayout.Label("Bot overlay", _titleStyle);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.Off ? "[Off]" : "Off", _buttonStyle)) ChooseOverlay(SpectatorOverlay.Off);
-            if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotInfo ? "[Bot info]" : "Bot info", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotInfo);
-            bool oldEnabled = GUI.enabled;
-            GUI.enabled = oldEnabled && CanUseBotDebug;
-            if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotDebug ? "[BotDebug]" : "BotDebug", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotDebug);
-            GUI.enabled = oldEnabled;
-            GUILayout.EndHorizontal();
-            if (_settings.BotInfoKey.Value.MainKey != KeyCode.None)
-                GUILayout.Label($"{_settings.BotInfoKey.Value}: show / hide Bot info", _textStyle);
-            if (!CanUseBotDebug) GUILayout.Label(_fika != null && !_fika.IsHost() ? "Use Bot info for replicated bots." : _botDebugStatus, _textStyle);
-            if (_overlay.Mode == SpectatorOverlay.BotInfo)
+            if (_botToolsEnabled)
             {
-                GUILayout.Label("Bot info: name, health, personality, carried value and current action.", _textStyle);
-                _settings.ShowOccludedBots.Value = GUILayout.Toggle(_settings.ShowOccludedBots.Value, "Show bots through scenery", _toggleStyle);
-                _settings.LimitLabelDistance.Value = GUILayout.Toggle(_settings.LimitLabelDistance.Value, "Limit label distance (F12)", _toggleStyle);
-                GUILayout.Label("White: Scavs | Squad colors: PMCs | Red: bosses | Orange: guards | Violet: other factions", _textStyle);
+                GUILayout.Label("Bot overlay", _titleStyle);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.Off ? "[Off]" : "Off", _buttonStyle)) ChooseOverlay(SpectatorOverlay.Off);
+                if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotInfo ? "[Bot info]" : "Bot info", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotInfo);
+                bool oldEnabled = GUI.enabled;
+                GUI.enabled = oldEnabled && CanUseBotDebug;
+                if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotDebug ? "[BotDebug]" : "BotDebug", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotDebug);
+                GUI.enabled = oldEnabled;
+                GUILayout.EndHorizontal();
+                if (_settings.BotInfoKey.Value.MainKey != KeyCode.None)
+                    GUILayout.Label($"{_settings.BotInfoKey.Value}: show / hide Bot info", _textStyle);
+                if (!CanUseBotDebug) GUILayout.Label(_fika != null && !_fika.IsHost() ? "Use Bot info for replicated bots." : _botDebugStatus, _textStyle);
+                if (_overlay.Mode == SpectatorOverlay.BotInfo)
+                {
+                    GUILayout.Label("Bot info: name, health, personality, carried value and current action.", _textStyle);
+                    _settings.ShowOccludedBots.Value = GUILayout.Toggle(_settings.ShowOccludedBots.Value, "Show bots through scenery", _toggleStyle);
+                    _settings.LimitLabelDistance.Value = GUILayout.Toggle(_settings.LimitLabelDistance.Value, "Limit label distance (F12)", _toggleStyle);
+                    GUILayout.Label("White: Scavs | Squad colors: PMCs | Red: bosses | Orange: guards | Violet: other factions", _textStyle);
+                }
+                _settings.ShowBotList.Value = GUILayout.Toggle(_settings.ShowBotList.Value, "Show bot list (click to visit)", _toggleStyle);
             }
-            _settings.ShowBotList.Value = GUILayout.Toggle(_settings.ShowBotList.Value, "Show bot list (click to visit)", _toggleStyle);
             _settings.ShowHelp.Value = GUILayout.Toggle(_settings.ShowHelp.Value, "Show help while moving the camera", _toggleStyle);
             GUILayout.Label("More settings: F12 > HORIZON. Movement: Freecam controls.", _textStyle);
             GUILayout.EndScrollView();
@@ -727,10 +739,14 @@ public sealed partial class Plugin : BaseUnityPlugin
             var infoKey = _settings.BotInfoKey.Value;
             string menu = _fika == null ? "Esc: menu / Leave raid" :
                 (_settings.MenuKey.Value.MainKey == KeyCode.Escape ? "F6" : _settings.MenuKey.Value.ToString()) + ": HORIZON menu";
-            GUILayout.Label(infoKey.MainKey == KeyCode.None ? menu : $"{menu} | {infoKey}: Bot info", _textStyle);
-            if (_settings.CycleBots.Value) GUILayout.Label(_navigator.Caption, _textStyle);
-            GUILayout.Label($"{_settings.FollowKey.Value}: {(_navigator.Following ? "stop following" : "follow bot")} | Hold Left Alt to drag", _textStyle);
-            if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: {(_navigator.LockOrientation ? "bot view" : "mouse orbit")}", _textStyle);
+            GUILayout.Label(!_botToolsEnabled || infoKey.MainKey == KeyCode.None ? menu : $"{menu} | {infoKey}: Bot info", _textStyle);
+            if (_botToolsEnabled)
+            {
+                if (_settings.CycleBots.Value) GUILayout.Label(_navigator.Caption, _textStyle);
+                GUILayout.Label($"{_settings.FollowKey.Value}: {(_navigator.Following ? "stop following" : "follow bot")} | Hold Left Alt to drag", _textStyle);
+                if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: {(_navigator.LockOrientation ? "bot view" : "mouse orbit")}", _textStyle);
+            }
+            else GUILayout.Label("Hold Left Alt to drag", _textStyle);
             GUILayout.Label(ZoomHint, _textStyle);
         }
         GUILayout.EndArea();

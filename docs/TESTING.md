@@ -57,7 +57,8 @@ For a live check, connect two graphical players to a hosted raid. Repeat with a 
 
 - While both players are alive, verify HORIZON stays inactive. After one dies or extracts, check that only their screen gets the controls and the other player can finish the raid. Verify the F6 menu, bot cycling, F3 labels and Fika's extract key.
 - Install the same HORIZON build on the graphical or headless raid host and the spectating client. Watch one bot through two different actions. Check that its F3 action updates on the joining player's screen, including with an AI mod running on the host. Check damage and loot changes. Repeat after extraction, an ordinary death, reconnect and with a second spectator. On a graphical host, compare labels on the same bot when both cameras are available.
-- Change either spectator permission and verify the native Fika restrictions. Check automatic extraction, transit, revive, disconnect and a second raid for stale overlays or input. Compare each player's saved outcome to their own exit.
+- Repeat with `allowSpectateFreeCam` on and `allowSpectateBots` off. F6 should open the menu and zoom should work. F3, follow, the list and wheel cycling should reveal no bots. Re-enable bot spectating on the next raid and verify that the player's saved overlay and list settings return.
+- Turn off spectator freecam and verify that Fika keeps control. Check automatic extraction, transit, revive, disconnect and a second raid for stale overlays or input. Compare each player's saved outcome to their own exit.
 
 ## Solo raid lifecycle
 

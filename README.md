@@ -11,7 +11,7 @@
 
 Keep watching your SPT raid after death or extraction. Fly around the map and see what the bots do next.
 
-**HORIZON 1.3.0 RC1 for SPT 4.1.6.** Solo uses Terkoiz Freecam 1.4.8 or later. Co-op uses Fika's built-in spectator camera.
+**HORIZON 1.3.0 RC2 for SPT 4.1.6.** Solo uses Terkoiz Freecam 1.4.8 or later. Co-op uses Fika's built-in spectator camera.
 
 ## What it does
 
@@ -43,7 +43,7 @@ ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectato
 
 ## Controls
 
-**Fika:** When the server allows free-camera and bot spectating, press **F3** after death or extraction to see BotInfo. The raid host reads each visible bot's current action, SAIN personality, ORBIT Ghost state, health and estimated carried value and sends them to the requesting spectator. AI mod integrations use the mods installed on the raid host. The graphical host can keep playing while a teammate spectates. Without a compatible host, the overlay shows "Host action unavailable". The separate BotDebug overlay runs on the graphical host only. Open HORIZON's menu with **F6** and use Fika's extract shortcut (**F8** by default) to leave.
+**Fika:** Enable `allowSpectateFreeCam` on the server to use the camera, zoom and **F6** menu after death or extraction. Enable `allowSpectateBots` as well to cycle through bots, follow them and toggle BotInfo with **F3**. The raid host reads each visible bot's current action, SAIN personality, ORBIT Ghost state, health and estimated carried value and sends them to the requesting spectator. AI mod integrations use the mods installed on the raid host. The graphical host can keep playing while a teammate spectates. Without a compatible host, the overlay shows "Host action unavailable". The separate BotDebug overlay runs on the graphical host only. Use Fika's extract shortcut (**F8** by default) to leave.
 
 Use Freecam's usual movement controls. **Mouse wheel** visits bots; **Escape** opens the spectator menu, where you can change the bot filter, toggle BotDebug or choose **Leave raid** to save and exit.
 

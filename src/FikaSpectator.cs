@@ -10,8 +10,8 @@ internal sealed class FikaSpectator
 {
     private const string Backend = "Fika.Core.Main.Utils.FikaBackendUtils";
     internal readonly Type ScriptType;
-    private readonly Func<bool> _headless, _transit, _allowFree, _allowBots;
-    internal readonly Func<bool> IsHost;
+    private readonly Func<bool> _headless, _transit, _allowFree;
+    internal readonly Func<bool> IsHost, AllowSpectateBots;
     private readonly PropertyInfo _active, _extracted;
     private readonly FieldInfo _observedAi, _following, _inputDisabled, _yaw, _pitch;
     private readonly MethodInfo _detach;
@@ -34,7 +34,7 @@ internal sealed class FikaSpectator
         _transit = ReadBool(backend, "IsTransit");
         var settings = type.GetProperty("Settings")?.GetValue(plugin) ?? throw new MissingMemberException(type.FullName, "Settings");
         _allowFree = ReadBool(settings.GetType(), "AllowSpectateFreeCam", settings);
-        _allowBots = ReadBool(settings.GetType(), "AllowSpectateBots", settings);
+        AllowSpectateBots = ReadBool(settings.GetType(), "AllowSpectateBots", settings);
         var player = assembly.GetType("Fika.Core.Main.Players.FikaPlayer", true)!;
         _observedAi = player.GetField("IsObservedAI") ?? throw new MissingFieldException(player.FullName, "IsObservedAI");
         ScriptType = assembly.GetType("Fika.Core.Main.FreeCamera.FreeCamera", true)!;
@@ -55,7 +55,7 @@ internal sealed class FikaSpectator
     internal bool CanWatch(Behaviour script, Player? player, bool afterDeath, bool afterExtraction)
     {
         if (!(bool)_active.GetValue(script)! || (bool)_inputDisabled.GetValue(script)! ||
-            _headless() || _transit() || !_allowFree() || !_allowBots()) return false;
+            _headless() || _transit() || !_allowFree()) return false;
         if (player == null || !player.IsYourPlayer || player.IsAI || player.HealthController == null) return false;
         return (bool)_extracted.GetValue(script)! ? afterExtraction : !player.HealthController.IsAlive && afterDeath;
     }

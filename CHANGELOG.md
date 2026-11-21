@@ -1,3 +1,8 @@
+# HORIZON 1.3.0 RC2
+
+- On Fika servers with `allowSpectateFreeCam` enabled, F6 now opens HORIZON's menu after death or extraction even when bot spectating is off. Camera movement and zoom work in this mode.
+- Bot labels (F3), the bot list, cycling and following still require `allowSpectateBots`. The menu shows when the server has disabled these features.
+
 # HORIZON 1.3.0 RC1
 
 - Added Fika spectator camera support for graphical hosts and clients, including clients on a headless-hosted raid. Fika controls permissions, extraction and saving.
