@@ -14,6 +14,7 @@ internal sealed class OptionalBotData
     private readonly HashSet<string> _warnings = new();
     private readonly Action<string> _warning;
     private Type? _sainBot, _sainManager, _qbMonitor, _qbObjective;
+    private Func<BotOwner, string>? _sainPersonality;
     private MethodInfo? _orbitObjective, _orbitDormant;
     private FieldInfo? _qbLiveAssignment;
     private Func<string, string>? _cometCurrent, _cometCrossfire, _cometPostCombat;
@@ -28,6 +29,9 @@ internal sealed class OptionalBotData
         {
             _sainBot ??= assembly.GetType("SAIN.Components.BotComponent");
             _sainManager ??= assembly.GetType("SAIN.Components.BotManagerComponent");
+            var personality = assembly.GetType("SAIN.Interop.SAINExternal")?.GetMethod("GetPersonality", new[] { typeof(BotOwner) });
+            if (personality is { IsStatic: true } && personality.ReturnType == typeof(string))
+                _sainPersonality = (Func<BotOwner, string>)personality.CreateDelegate(typeof(Func<BotOwner, string>));
             _qbMonitor ??= assembly.GetType("QuestingBots.BotLogic.BotMonitor.BotMonitorController");
             var orbit = assembly.GetType("Orbit.Api.OrbitTelemetry");
             if (orbit != null)
@@ -102,6 +106,8 @@ internal sealed class OptionalBotData
             return Get(manager, "Bots") is IDictionary bots ? bots[player.ProfileId] : null;
         }, null);
         string personality = Read("SAIN personality", () => Text(Get(sain, "Info"), "Personality"), "");
+        if (personality.Length == 0 && owner != null && _sainPersonality != null)
+            personality = Read("SAIN personality API", () => _sainPersonality(owner) ?? "", "");
         string decision = native;
         if (BehaviorOwnership.IsSainLayer(layer))
         {

@@ -15,7 +15,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Camera bridge checks failed' }
     dotnet run --project tests/ConfigHarness -c Release
     if ($LASTEXITCODE -ne 0) { throw 'Configuration checks failed' }
-    dotnet run --project tests/FikaFeed -c Release "-p:FikaPath=$FikaPath"
+    dotnet run --project tests/FikaFeed -c Release "-p:FikaPath=$FikaPath" "-p:SptRoot=$SptRoot" -- $SptRoot
     if ($LASTEXITCODE -ne 0) { throw 'Fika action sync checks failed' }
     $version = dotnet msbuild HORIZON.csproj -nologo -getProperty:Version -p:Configuration=Release
     if ($LASTEXITCODE -ne 0) { throw 'Could not read HORIZON package version' }

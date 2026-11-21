@@ -74,6 +74,12 @@ internal static class FikaCameraTests
         replica.Profile.Info.GroupId = "alpha";
         roster.Refresh(world, 2);
         check(roster.Bots.Single().GroupLabel == "Squad alpha", "A replicated profile group can identify the bot squad");
+        roster.ReadHostSquad = _ => (true, 0);
+        roster.Refresh(world, 3);
+        check(roster.Bots.Single().GroupLabel == "Squad 0", "Roster uses the host's squad without rendering a label");
+        roster.ReadHostSquad = _ => (true, null);
+        roster.Refresh(world, 4);
+        check(roster.Bots.Single().GroupLabel == "Solo bots", "Host-confirmed solo overrides the replicated profile group");
         PmcNavigator.IsObservedBot = null;
         var camera = new Camera();
         var bridge = new FreecamBridge();

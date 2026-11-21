@@ -11,5 +11,6 @@
     <Compile Include="../../fika/ActionProtocol.cs" Link="Production/ActionProtocol.cs" />
     <Compile Include="../../src/BotLabelSample.cs" Link="Production/BotLabelSample.cs" />
     <Reference Include="Fika.Core" HintPath="$(FikaPath)" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(SptRoot)/EscapeFromTarkov_Data/Managed/UnityEngine.CoreModule.dll" Private="false" />
   </ItemGroup>
 </Project>

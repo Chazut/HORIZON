@@ -22,6 +22,7 @@ internal sealed class BotRoster
     private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
     private readonly List<string> _removed = new();
     private float _nextRefresh;
+    internal Func<Player, (bool known, int? id)>? ReadHostSquad;
 
     public void Refresh(GameWorld world, float now)
     {
@@ -41,7 +42,14 @@ internal sealed class BotRoster
             bot.Kind = BotPresentation.Kind(role);
             var group = player.AIData?.BotOwner?.BotsGroup;
             bool replicated = group == null && PmcNavigator.IsObservedBot?.Invoke(player) == true;
-            string? groupId = group != null ? group.Id.ToString() : replicated ? player.Profile?.Info?.GroupId : null;
+            string? groupId = group?.Id.ToString();
+            bool unknown = false;
+            if (replicated)
+            {
+                var host = ReadHostSquad?.Invoke(player) ?? default;
+                groupId = host.known ? host.id?.ToString() : player.Profile?.Info?.GroupId;
+                unknown = !host.known && string.IsNullOrEmpty(groupId);
+            }
             if (!string.IsNullOrEmpty(groupId))
             {
                 bot.Group = "group:" + groupId;
@@ -49,8 +57,8 @@ internal sealed class BotRoster
             }
             else
             {
-                bot.Group = (replicated ? "unknown:" : "solo:") + player.ProfileId;
-                bot.GroupLabel = replicated ? "Unknown squad" : "Solo bots";
+                bot.Group = (unknown ? "unknown:" : "solo:") + player.ProfileId;
+                bot.GroupLabel = unknown ? "Unknown squad" : "Solo bots";
             }
             bot.ColorIndex = BotPresentation.RoleColorIndex(role, bot.Group);
             Bots.Add(bot);

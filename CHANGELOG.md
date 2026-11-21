@@ -1,3 +1,9 @@
+# HORIZON 1.3.0 RC3
+
+- Joining Fika players request bot actions and SAIN personalities directly from the raid host. The host checks its own raid and spectator state before replying.
+- The bot list uses the host's squad IDs and can identify solo bots even with F3 labels off.
+- For troubleshooting, search both BepInEx logs for `Fika bot sync` to see the request, the host's decision and the client's receipt. Install RC3 on both the raid host (including headless) and the spectating PCs.
+
 # HORIZON 1.3.0 RC2
 
 - On Fika servers with `allowSpectateFreeCam` enabled, F6 now opens HORIZON's menu after death or extraction even when bot spectating is off. Camera movement and zoom work in this mode.

@@ -56,6 +56,7 @@ internal static class BotInfoTests
         a.AIData.BotOwner!.Brain.Layer = "SAIN : Combat Layer";
         check(data.ReadBot(a, world).action.Contains("Action Unavailable"), "Missing SAIN data is explicit, not a fabricated decision");
         data.Bind(new[] { typeof(BotInfoTests).Assembly }, true);
+        check(data.ReadBot(a, world).personality == "GigaChad", "SAIN's host API supplies personality when component discovery misses");
         var sain = new BotComponent();
         var manager = new BotManagerComponent(); manager.Bots[a.ProfileId] = sain;
         world.gameObject.Components.Add(typeof(BotManagerComponent), manager);
@@ -215,5 +216,13 @@ internal static class BotInfoTests
         labels.Hide(roster); roster.Clear(); labels.Clear();
         check(roster.Bots.Count == 0, "Leaving a raid clears roster and scene references");
         check(BotPresentation.Kind("bossKilla").StartsWith("Boss") && BotPresentation.Kind("followerBully").StartsWith("Guard") && BotPresentation.Kind("exUsec") == "Rogue", "Roster types cover bosses, guards and rogues");
+    }
+}
+
+namespace SAIN.Interop
+{
+    public static class SAINExternal
+    {
+        public static string GetPersonality(BotOwner owner) => "GigaChad";
     }
 }

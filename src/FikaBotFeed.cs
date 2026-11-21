@@ -10,9 +10,9 @@ namespace Horizon;
 
 internal abstract class FikaBotFeed : IDisposable
 {
-    internal static FikaBotFeed Load(Func<Player, GameWorld, (string, string, bool)> read, Action<string> warn)
+    internal static FikaBotFeed Load(Func<Player, GameWorld, (string, string, bool)> read, Action<string> info, Action<string> warn)
     {
-        return (FikaBotFeed)Activator.CreateInstance(LoadTransportType(), read, warn)!;
+        return (FikaBotFeed)Activator.CreateInstance(LoadTransportType(), read, info, warn)!;
     }
 
     private static Type LoadTransportType()
@@ -26,6 +26,8 @@ internal abstract class FikaBotFeed : IDisposable
     }
 
     internal abstract BotLabelSample ReadRemote(Player bot, GameWorld world);
+    internal abstract (bool known, int? id) ReadSquad(Player bot);
+    internal abstract void PollRoster(BotRoster roster, GameWorld world, float now);
     internal abstract void ClearClient();
     public abstract void Dispose();
 }
