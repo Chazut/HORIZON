@@ -5,9 +5,9 @@
     <Nullable>enable</Nullable>
     <AssemblyName>HORIZON</AssemblyName>
     <RootNamespace>Horizon</RootNamespace>
-    <Version>1.3.0-rc.3</Version>
-    <AssemblyVersion>1.3.0.3</AssemblyVersion>
-    <FileVersion>1.3.0.3</FileVersion>
+    <Version>1.3.0-rc.4</Version>
+    <AssemblyVersion>1.3.0.4</AssemblyVersion>
+    <FileVersion>1.3.0.4</FileVersion>
     <Authors>Chazut</Authors>
     <Product>HORIZON</Product>
     <Description>Watch bots after death or extraction in solo SPT or with Fika's spectator camera.</Description>

@@ -13,6 +13,13 @@ internal static class BotInfoTests
 {
     public static void Run(Action<bool, string> check)
     {
+        check(BotNames.Display("Дед Мороз", "id") == "Santa Claus" && BotNames.Display("Партизан", "id") == "Partizan",
+            "Established English names take priority over transliteration");
+        check(BotNames.Display("Shadow_ЮЛИЯ-ЩУКА42", "id") == "Shadow_YULIYA-SHCHUKA42" &&
+            BotNames.Display("Журавлёв Тестовый", "id") == "Zhuravlyov Testovyy" &&
+            BotNames.Display("Ілля Ґринь", "id") == "Illya Grin", "Unknown names retain casing, separators and mixed scripts");
+        check(BotNames.Display("René 日本", "id") == "René 日本" && BotNames.Display("<b></b>", "id") == "id",
+            "Other scripts and missing-name fallbacks are preserved");
         var world = new GameWorld();
         Player Bot(string id, string name, int? group, WildSpawnType role = WildSpawnType.pmcUSEC)
         {
@@ -209,6 +216,11 @@ internal static class BotInfoTests
         check(BotLabels.InView(camera, a, 0, out _), "Unlimited labels include bots beyond the former 150m and 500m limits");
         for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 28, 0, true);
         check(alpha.Visible && alpha.Label.Contains("Alpha"), "Distant bot information is collected, not just projected");
+        a.Profile.Nickname = "Скиф Заводской";
+        roster.Refresh(world, 29);
+        for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 29, 0, true);
+        check(alpha.Visible && alpha.Label.StartsWith("Skif Zavodskoy |") && alpha.Name == "Skif Zavodskoy",
+            "BotInfo labels and the list show the same English guard name");
         camera.Projection = new(1.2f, .5f, 1);
         check(!BotLabels.InView(camera, a, 0, out _), "Unlimited range still excludes off-screen bots");
         camera.Projection = new(.5f, .5f, -1);

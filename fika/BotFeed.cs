@@ -245,7 +245,7 @@ internal sealed class BotFeed : FikaBotFeed
             // Register before sending, even if the Fika manager was created before our listener.
             client.RegisterPacket<Reply, NetPeer>(ReceiveReply);
             _client = client;
-            _info("Fika bot sync [client] registered RC3 reply handler.");
+            _info("Fika bot sync [client] registered reply handler.");
         }
         if (!ReferenceEquals(world, _viewWorld) || !ReferenceEquals(peer, _connection))
         {

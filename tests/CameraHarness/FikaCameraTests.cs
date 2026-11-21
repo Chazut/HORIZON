@@ -65,14 +65,18 @@ internal static class FikaCameraTests
         check(!fika.IsHost() && Watch(), "Graphical client can spectate");
         PmcNavigator.IsObservedBot = fika.IsObservedBot;
         var replica = new FikaPlayer { IsObservedAI = true };
+        replica.Profile.Nickname = "<color=red>Решала</color>";
         check(PmcNavigator.IsLivingBot(replica) && !PmcNavigator.IsLivingBot(new FikaPlayer()), "Remote AI is selectable and remote humans are excluded");
         var roster = new BotRoster();
         var world = new GameWorld();
         world.RegisterPlayer(replica);
         roster.Refresh(world, 1);
+        check(roster.Bots.Single().Name == "Reshala", "The joining player's roster uses the English boss name");
         check(roster.Bots.Single().GroupLabel == "Unknown squad", "Missing host squad data stays unknown");
         replica.Profile.Info.GroupId = "alpha";
+        replica.Profile.Nickname = "Саня Заводской";
         roster.Refresh(world, 2);
+        check(roster.Bots.Single().Name == "Sanja Zavodskoy", "A replicated nickname update uses Raid Review's guard spelling");
         check(roster.Bots.Single().GroupLabel == "Squad alpha", "A replicated profile group can identify the bot squad");
         roster.ReadHostSquad = _ => (true, 0);
         roster.Refresh(world, 3);
@@ -80,7 +84,6 @@ internal static class FikaCameraTests
         roster.ReadHostSquad = _ => (true, null);
         roster.Refresh(world, 4);
         check(roster.Bots.Single().GroupLabel == "Solo bots", "Host-confirmed solo overrides the replicated profile group");
-        PmcNavigator.IsObservedBot = null;
         var camera = new Camera();
         var bridge = new FreecamBridge();
         bridge.AttachFika(native, camera, rotation => fika.Align(native, rotation));
@@ -90,6 +93,14 @@ internal static class FikaCameraTests
         var pose = new Quaternion { eulerAngles = new Vector3(350, 123, 0) };
         bridge.MoveTo(new Vector3(7, 8, 9), pose);
         check(native.Detached && native.Yaw == 123 && native.Pitch == -10, "Bot visit detaches from native follow and aligns mouse look");
+        var navigator = new PmcNavigator();
+        navigator.SetFilter(BotFilter.AllBots);
+        check(navigator.Visit(world, bridge, replica, 3f) && navigator.Caption == "Sanja Zavodskoy" &&
+            navigator.SelectedId == replica.ProfileId, "Clicking the English name still selects the same replicated bot");
+        navigator.Move(world, bridge, 1);
+        check(navigator.Caption == "Sanja Zavodskoy (1/1)" && replica.Profile.Nickname == "Саня Заводской",
+            "Cycling uses the same display name and preserves the network profile");
+        PmcNavigator.IsObservedBot = null;
         bridge.Release();
         check(native.enabled && native.IsActive && !bridge.Ready && !Cursor.visible && Cursor.lockState == CursorLockMode.Confined,
             "Detach releases references and restores the cursor without turning off Fika");

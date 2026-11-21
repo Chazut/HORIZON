@@ -1,3 +1,7 @@
+# HORIZON 1.3.0 RC4
+
+- The bot list, overhead labels and spectator camera now show Cyrillic bot names in English. HORIZON uses Raid Review's spellings for known names and transliterates the rest.
+
 # HORIZON 1.3.0 RC3
 
 - Joining Fika players request bot actions and SAIN personalities directly from the raid host. The host checks its own raid and spectator state before replying.

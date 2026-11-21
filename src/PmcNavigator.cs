@@ -99,7 +99,7 @@ internal sealed class PmcNavigator
         _cycle.Select(target.ProfileId);
         SeedOrbit(target);
         Place(camera, target, distance);
-        Caption = target.Profile.Nickname;
+        Caption = BotNames.Display(target.Profile?.Nickname, target.ProfileId);
         return true;
     }
 
@@ -130,7 +130,8 @@ internal sealed class PmcNavigator
         _target = target;
         SeedOrbit(target);
         Place(camera, target, distance);
-        Caption = $"{target.Profile.Nickname} ({_ids.IndexOf(id) + 1}/{_ids.Count})";
+        string name = BotNames.Display(target.Profile?.Nickname, id);
+        Caption = $"{name} ({_ids.IndexOf(id) + 1}/{_ids.Count})";
     }
 
     private void Place(FreecamBridge camera, Player target, float distance)

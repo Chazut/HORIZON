@@ -8,6 +8,7 @@ internal sealed class SpectatorBot
 {
     public Player Player = null!;
     public string Id = "", Name = "", Kind = "", Group = "", GroupLabel = "";
+    public string? RawName;
     public int ColorIndex;
     public string Label = "";
     public float NextDetails, NextValue;
@@ -37,7 +38,12 @@ internal sealed class BotRoster
                 _byId.Add(player.ProfileId, bot = new SpectatorBot { Id = player.ProfileId });
             if (bot.Player != player) { bot.Visible = false; bot.NextDetails = bot.NextValue = 0; bot.Value = null; }
             bot.Player = player;
-            bot.Name = player.Profile?.Nickname ?? player.ProfileId;
+            string nickname = player.Profile?.Nickname ?? "";
+            if (bot.RawName != nickname)
+            {
+                bot.RawName = nickname;
+                bot.Name = BotNames.Display(nickname, bot.Id);
+            }
             string role = player.Profile?.Info?.Settings?.Role.ToString() ?? "Unknown";
             bot.Kind = BotPresentation.Kind(role);
             var group = player.AIData?.BotOwner?.BotsGroup;

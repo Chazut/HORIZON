@@ -1,4 +1,4 @@
-Action ownership helpers adapted from Raid Review (ekky-llc / Chazut).
+Action ownership helpers and English bot names adapted from Raid Review (ekky-llc / Chazut).
 https://github.com/Chazut/spt-raid-review-fork
 
 MIT License

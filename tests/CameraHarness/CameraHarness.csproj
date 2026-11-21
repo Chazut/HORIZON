@@ -14,6 +14,7 @@
     <Compile Include="../../src/BotFilter.cs" Link="Production/BotFilter.cs" />
     <Compile Include="../../src/SpectatorOverlay.cs" Link="Production/SpectatorOverlay.cs" />
     <Compile Include="../../src/BotPresentation.cs" Link="Production/BotPresentation.cs" />
+    <Compile Include="../../src/BotNames*.cs" Link="Production/%(Filename)%(Extension)" />
     <Compile Include="../../src/BotRoster.cs" Link="Production/BotRoster.cs" />
     <Compile Include="../../src/OptionalBotData.cs" Link="Production/OptionalBotData.cs" />
     <Compile Include="../../src/BotLabels.cs" Link="Production/BotLabels.cs" />
