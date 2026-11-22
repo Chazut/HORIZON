@@ -1,3 +1,20 @@
+# HORIZON 1.3.0
+
+## Features
+
+- **Spectate Fika raids.** After death or extraction, press **F6** to open HORIZON. Fly freely or follow a bot, depending on the permissions set by the host.
+- **See what bots are doing in co-op.** BotInfo gets current actions, SAIN personalities, health and carried value from the raid host, including headless hosts.
+- **Read bot names in English.** The bot list, labels and follow camera now show Cyrillic names in Latin characters, using Raid Review's spellings where available.
+
+## Changes
+
+- One DLL works for solo SPT, Fika players and headless hosts. Solo still uses Terkoiz Freecam. Install HORIZON on the raid host and each PC that wants to spectate.
+
+## Fixes
+
+- Freecam and zoom work when the host allows freecam but disables bot spectating.
+- Joining spectators see the host's squad groups and lone bots in the list, even with overhead labels turned off.
+
 # HORIZON 1.3.0 RC4
 
 - The bot list, overhead labels and spectator camera now show Cyrillic bot names in English. HORIZON uses Raid Review's spellings for known names and transliterates the rest.

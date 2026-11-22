@@ -2,7 +2,7 @@
 
 Did the PMC who killed you make it to extract? HORIZON lets you watch your SPT raid after death or extraction. Fly back to the fight, follow a squad or watch the bots loot what's left.
 
-**HORIZON 1.3.0 RC4 for SPT 4.1.6.** Fika uses its native spectator camera. For solo SPT, install [Terkoiz Freecam 1.4.8 or later](https://sp-mod.com/mod/164/freecam).
+**HORIZON 1.3.0 for SPT 4.1.6.** Fika uses its native spectator camera. For solo SPT, install [Terkoiz Freecam 1.4.8 or later](https://sp-mod.com/mod/164/freecam).
 
 ## HORIZON {.tabset}
 
