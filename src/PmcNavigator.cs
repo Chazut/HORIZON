@@ -17,6 +17,7 @@ internal sealed class PmcNavigator
     private Player? _target;
     public bool Following { get; private set; }
     public bool LockOrientation { get; private set; }
+    public Player? FollowedBot => Following ? _target : null;
     public string? SelectedId => _target != null ? _target.ProfileId : null;
     private float _yaw, _pitch;
     private float _configuredDistance = float.NaN, _distance;

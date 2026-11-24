@@ -42,6 +42,7 @@
     <Reference Include="UnityEngine" HintPath="$(SptRoot)/EscapeFromTarkov_Data/Managed/UnityEngine.dll" Private="false" />
     <Reference Include="UnityEngine.CoreModule" HintPath="$(SptRoot)/EscapeFromTarkov_Data/Managed/UnityEngine.CoreModule.dll" Private="false" />
     <Reference Include="UnityEngine.PhysicsModule" HintPath="$(SptRoot)/EscapeFromTarkov_Data/Managed/UnityEngine.PhysicsModule.dll" Private="false" />
+    <Reference Include="UnityEngine.AudioModule" HintPath="$(SptRoot)/EscapeFromTarkov_Data/Managed/UnityEngine.AudioModule.dll" Private="false" />
     <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(SptRoot)/EscapeFromTarkov_Data/Managed/UnityEngine.InputLegacyModule.dll" Private="false" />
     <Reference Include="UnityEngine.IMGUIModule" HintPath="$(SptRoot)/EscapeFromTarkov_Data/Managed/UnityEngine.IMGUIModule.dll" Private="false" />
     <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(SptRoot)/EscapeFromTarkov_Data/Managed/UnityEngine.TextRenderingModule.dll" Private="false" />

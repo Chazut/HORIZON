@@ -174,6 +174,35 @@ Check(plugin.Name.Name == "HORIZON", "Plugin assembly uses the HORIZON name");
 using var game = AssemblyDefinition.ReadAssembly(Path.Combine(root, "EscapeFromTarkov_Data/Managed/Assembly-CSharp.dll"), parameters);
 using var freecam = AssemblyDefinition.ReadAssembly(Path.Combine(root, "BepInEx/plugins/Terkoiz.Freecam/Terkoiz.Freecam.dll"), parameters);
 var entry = plugin.MainModule.GetType("Horizon.Plugin");
+var stepPlayer = game.MainModule.GetType("EFT.Player");
+var stepSource = stepPlayer.Fields.Single(f => f.Name == "NestedStepSoundSource");
+var surfaceGate = stepPlayer.Methods.Single(m => m.Name == "CheckSurface");
+Check(surfaceGate.Parameters.Single().ParameterType.FullName == "System.Single" && surfaceGate.ReturnType.FullName == "System.Boolean",
+    "Native movement range gate exposes a passive pass/fail observation");
+var stepBank = game.MainModule.GetType("EFT.SoundBank").Methods.Single(m => m.Name == "Play");
+Check(stepBank.ReturnType.FullName == "System.Void" && stepBank.Parameters[0].ParameterType.FullName == stepSource.FieldType.FullName &&
+    stepBank.Parameters[2].ParameterType.FullName == "System.Single" && stepBank.Parameters[3].ParameterType.FullName == "System.Single",
+    "Footstep observer binds to the native source, distance and volume");
+bool UsesStepBank(MethodDefinition m) => m.HasBody &&
+    m.Body.Instructions.Any(i => i.Operand is FieldReference f && f.FullName == stepSource.FullName) &&
+    m.Body.Instructions.Any(i => i.Operand is MethodReference target && target.FullName == stepBank.FullName);
+Check(UsesStepBank(stepPlayer.Methods.Single(m => m.Name == "PlayStepSound")), "Native walking uses the observed bank and source");
+Check(stepPlayer.NestedTypes.SelectMany(t => t.Methods).Any(m => m.Name == "MoveNext" && UsesStepBank(m)),
+    "Native player coroutine also dispatches to the observed movement source");
+var handoff = entry.NestedTypes.SelectMany(t => t.Methods).Where(m => m.HasBody)
+    .Single(m => m.Body.Instructions.Any(i => i.Operand is MethodReference { DeclaringType.Name: "SpectatorFootsteps", Name: "Begin" }));
+var handoffIl = handoff.Body.Instructions.ToList();
+int attach = handoffIl.FindIndex(i => i.Operand is MethodReference { DeclaringType.Name: "FreecamBridge", Name: "Attach" });
+int beginWatch = handoffIl.FindIndex(i => i.Operand is MethodReference { DeclaringType.Name: "SpectatorFootsteps", Name: "Begin" });
+Check(attach >= 0 && beginWatch > attach, "Watch begins after camera handoff");
+Check(!handoffIl.Skip(attach + 1).Take(beginWatch - attach - 1)
+    .Any(i => i.Operand is MethodReference { Name: "get_Extracted" } or MethodReference { DeclaringType.Name: "KillcamBridge" }),
+    "Solo extraction and death both start footstep observation independently of Killcam");
+var lateUpdate = entry.Methods.Single(m => m.Name == "LateUpdate").Body.Instructions;
+var observeSteps = lateUpdate.Select(i => i.Operand).OfType<MethodReference>()
+    .Single(m => m.DeclaringType.Name == "SpectatorFootsteps" && m.Name == "Observe");
+Check(observeSteps.Parameters.Any(p => p.ParameterType.Name == "FollowTransition"),
+    "Automatic target loss reaches the audio observer on the same update");
 var identity = entry.CustomAttributes.Single(a => a.AttributeType.Name == "BepInPlugin");
 Check((string)identity.ConstructorArguments[0].Value == "com.chazut.horizon" && (string)identity.ConstructorArguments[1].Value == "HORIZON", "HORIZON exposes its public plugin GUID");
 Check(plugin.MainModule.GetType("Horizon.BotDebugHooks").Methods.Single(m => m.Name == ".cctor").Body.Instructions.Any(i =>

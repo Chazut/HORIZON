@@ -25,6 +25,7 @@ public sealed partial class Plugin : BaseUnityPlugin
     private static Plugin? _instance;
     private readonly SpectatorSession _session = new();
     private readonly FreecamBridge _camera = new();
+    private readonly SpectatorFootsteps _footsteps = new();
     private readonly KillcamBridge _killcam = new();
     private readonly BotDebugBridge _botDebug = new();
     private BotDebugView _botDebugView = null!;
@@ -259,6 +260,8 @@ public sealed partial class Plugin : BaseUnityPlugin
         {
             if (!_camera.Attach(_game)) throw new InvalidOperationException("Freecam camera disappeared during the handoff");
             _cameraActive = true;
+            try { _footsteps.Begin(_harmony, loggedWait); }
+            catch (Exception e) { Logger.LogWarning($"Spectator footstep diagnostics unavailable: {e.GetBaseException().Message}"); }
             _botDebugView.Attach(_world!, _player!, _camera.Camera!);
             _camera.SetMenu(false);
             BindBotInformation();
@@ -366,11 +369,22 @@ public sealed partial class Plugin : BaseUnityPlugin
     {
         if (!CameraWatching) return;
         _camera.MaintainEffects();
+        FollowTransition transition = FollowTransition.None;
         if (_botToolsEnabled && _world != null)
         {
-            var transition = _navigator.Follow(_world, _camera, _settings.VisitDistance.Value, _settings.AutoSwitchOnDeath.Value);
+            var previous = _navigator.Caption;
+            transition = _navigator.Follow(_world, _camera, _settings.VisitDistance.Value, _settings.AutoSwitchOnDeath.Value);
             if (transition != FollowTransition.None)
-                Logger.LogInfo($"Follow target lost: {transition}, autoSwitch={_settings.AutoSwitchOnDeath.Value}, target={_navigator.Caption}.");
+                Logger.LogInfo($"Follow target lost: {transition}, previous={previous}, autoSwitch={_settings.AutoSwitchOnDeath.Value}, target={_navigator.Caption}.");
+        }
+        if (_footsteps.Active)
+        {
+            try { _footsteps.Observe(_world!, _camera.Camera!, _navigator.FollowedBot, transition, _physicsInfo); }
+            catch (Exception e)
+            {
+                _footsteps.Reset();
+                Logger.LogWarning($"Spectator footstep diagnostics stopped: {e.GetBaseException().Message}");
+            }
         }
         _camera.SetMenu(CameraMenu, _navigator.Following);
     }
@@ -431,6 +445,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         _botDebugView.Clear();
         _physics.Reset();
         _physicsDiagnostics.Reset();
+        _footsteps.Reset();
         _physicsFailureLogged = false;
         _physicsDiagnosticsFailed = false;
         try { _camera.Release(); }
