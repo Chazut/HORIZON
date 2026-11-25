@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/BotLabelFields.cs" Link="Production/BotLabelFields.cs" />
     <Compile Include="../../src/FreecamBridge.cs" Link="Production/FreecamBridge.cs" />
     <Compile Include="../../src/FikaSpectator.cs" Link="Production/FikaSpectator.cs" />
     <Compile Include="../../src/KillcamBridge.cs" Link="Production/KillcamBridge.cs" />

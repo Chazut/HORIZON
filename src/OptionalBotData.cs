@@ -91,23 +91,29 @@ internal sealed class OptionalBotData
 
     public string Description => $"SAIN={_sainBot != null}, ORBIT={_orbitObjective != null}, COMET={_cometCurrent != null}, QB={_qbMonitor != null || _qbObjective != null}, LB={_lootingBots}";
 
-    public (string personality, string action, bool ghost) ReadBot(Player player, GameWorld world)
+    public (string personality, string action, bool ghost) ReadBot(Player player, GameWorld world, BotLabelFields fields = BotLabelFields.All)
     {
+        if ((fields & BotLabelFields.Behavior) == 0) return ("", "", false);
+        bool wantAction = (fields & BotLabelFields.Actions) != 0;
+        bool wantPersonality = (fields & BotLabelFields.Personality) != 0;
+        bool ghost = (wantAction || (fields & BotLabelFields.Ghost) != 0)
+            && Read("ORBIT Ghost", () => _orbitDormant?.Invoke(null, new object[] { player.ProfileId }) is true, false);
+        if (!wantAction && !wantPersonality) return ("", "", ghost);
         var owner = player.AIData?.BotOwner;
-        string layer = Read("native layer", () => owner?.Brain?.Agent == null ? "" : owner.Brain.ActiveLayerName(), "");
-        string native = Read("native decision", () => owner?.Brain?.LastDecision.ToString() ?? "", "");
-        bool ghost = Read("ORBIT Ghost", () => _orbitDormant?.Invoke(null, new object[] { player.ProfileId }) is true, false);
-        object? sain = Read<object?>("SAIN component", () =>
+        string layer = wantAction ? Read("native layer", () => owner?.Brain?.Agent == null ? "" : owner.Brain.ActiveLayerName(), "") : "";
+        object? sain = wantPersonality || BehaviorOwnership.IsSainLayer(layer) ? Read<object?>("SAIN component", () =>
         {
             if (_sainBot == null) return null;
             var component = player.gameObject.GetComponent(_sainBot) ?? owner?.gameObject.GetComponent(_sainBot);
             if (component != null) return component;
             var manager = _sainManager != null ? world.GetComponent(_sainManager) : null;
             return Get(manager, "Bots") is IDictionary bots ? bots[player.ProfileId] : null;
-        }, null);
-        string personality = Read("SAIN personality", () => Text(Get(sain, "Info"), "Personality"), "");
-        if (personality.Length == 0 && owner != null && _sainPersonality != null)
+        }, null) : null;
+        string personality = wantPersonality ? Read("SAIN personality", () => Text(Get(sain, "Info"), "Personality"), "") : "";
+        if (wantPersonality && personality.Length == 0 && owner != null && _sainPersonality != null)
             personality = Read("SAIN personality API", () => _sainPersonality(owner) ?? "", "");
+        if (!wantAction) return (personality, "", ghost);
+        string native = Read("native decision", () => owner?.Brain?.LastDecision.ToString() ?? "", "");
         string decision = native;
         if (BehaviorOwnership.IsSainLayer(layer))
         {

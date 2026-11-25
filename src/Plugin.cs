@@ -363,7 +363,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         if (_botToolsEnabled && _settings.ShowBotList.Value && _fika != null && !_fika.IsHost())
             _fikaFeed?.PollRoster(_roster, world, Time.unscaledTime);
         if (_overlay.Mode == SpectatorOverlay.BotInfo && _camera.Camera != null)
-            _labels.Update(_roster, world, _camera.Camera, Time.unscaledTime, _settings.EffectiveLabelDistance, _settings.ShowOccludedBots.Value, _settings.ShowDistance.Value, FollowedActor);
+            _labels.Update(_roster, world, _camera.Camera, Time.unscaledTime, _settings.EffectiveLabelDistance, _settings.ShowOccludedBots.Value, _settings.VisibleLabelFields, FollowedActor);
     }
 
     private void LateUpdate()
@@ -756,8 +756,11 @@ public sealed partial class Plugin : BaseUnityPlugin
             if (_overlay.Mode == SpectatorOverlay.BotInfo)
             {
                 if (_fika != null)
-                    _settings.ShowHumanLabels.Value = GUILayout.Toggle(_settings.ShowHumanLabels.Value, "Show player names and health", _toggleStyle);
-                _settings.ShowDistance.Value = GUILayout.Toggle(_settings.ShowDistance.Value, "Show distance on labels", _toggleStyle);
+                    _settings.ShowHumanLabels.Value = GUILayout.Toggle(_settings.ShowHumanLabels.Value, "Show player labels", _toggleStyle);
+                GUILayout.Label("Bot info fields", _titleStyle);
+                foreach (var (field, setting) in _settings.LabelOptions)
+                    if (_botToolsEnabled || (field & BotLabelFields.Human) != 0)
+                        setting.Value = GUILayout.Toggle(setting.Value, setting.Definition.Key, _toggleStyle);
                 if (_botToolsEnabled)
                     _settings.ActionsOnlyWhenFollowing.Value = GUILayout.Toggle(_settings.ActionsOnlyWhenFollowing.Value, "Show actions only for the followed bot", _toggleStyle);
                 _settings.ShowOccludedBots.Value = GUILayout.Toggle(_settings.ShowOccludedBots.Value, "Show labels through scenery", _toggleStyle);

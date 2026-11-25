@@ -120,13 +120,13 @@ internal static class FikaCameraTests
         roster.Refresh(world, 5, includeHumans: true);
         check(roster.Labels.Count == 2 && roster.Bots.Single().Player == replica, "Human labels leave the bot list and Fika polling bot-only");
         int samples = 0;
-        var labels = new BotLabels((_, _) => { samples++; return new BotLabelSample(("Rat", "Taking cover", false)); }, _ => {});
+        var labels = new BotLabels((_, _, _) => { samples++; return new BotLabelSample(("Rat", "Taking cover", false)); }, _ => {});
         teammate.transform.position = new Vector3(10, 0, 0);
         replica.transform.position = new Vector3(30, 0, 0);
         camera.transform.position = new Vector3(4, 0, 0);
         void Refresh(float t, Player? followed)
         {
-            for (int i = 0; i < 3; i++) labels.Update(roster, world, camera, t, 0, true, true, followed);
+            for (int i = 0; i < 3; i++) labels.Update(roster, world, camera, t, 0, true, BotLabelFields.All, followed);
         }
         Refresh(5, null);
         var human = roster.Labels.Single(p => p.Human);
@@ -137,8 +137,12 @@ internal static class FikaCameraTests
         check(BotLabels.Caption(ai, false, null).Contains("Taking cover") && !BotLabels.Caption(ai, true, null).Contains("Taking cover") &&
             BotLabels.Caption(ai, true, replica).Contains("Taking cover") && BotLabels.Caption(ai, true, teammate).Contains("Health:") &&
             !BotLabels.Caption(ai, true, teammate).Contains("Taking cover"), "Follow-only changes just the action line, immediately");
-        for (int i = 0; i < 3; i++) labels.Update(roster, world, camera, 7, 0, true, false, teammate);
+        for (int i = 0; i < 3; i++) labels.Update(roster, world, camera, 7, 0, true, BotLabelFields.All & ~BotLabelFields.Distance, teammate);
         check(!human.Label.Contains(" m") && !ai.Label.Contains(" m") && ai.Label.Contains("Taking cover"), "Distance can be disabled independently");
+        for (int i = 0; i < 3; i++) labels.Update(roster, world, camera, 7.1f, 0, true, BotLabelFields.Health);
+        check(human.Label == "Health: 350/440" && ai.Label == "Health: 350/440", "Health can be the only field on both Fika label types");
+        for (int i = 0; i < 3; i++) labels.Update(roster, world, camera, 7.2f, 0, true, BotLabelFields.Personality);
+        check(!human.Visible && ai.Label == "Rat", "AI-only fields never create empty human labels");
         teammate.HealthController.IsAlive = false;
         roster.Refresh(world, 7, includeHumans: true);
         check(roster.Labels.All(p => !p.Human), "Dead or removed humans no longer appear in the overlay");

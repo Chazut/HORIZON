@@ -49,6 +49,8 @@ Use Freecam's usual movement controls. **Mouse wheel** visits bots; **Escape** o
 
 **Bot info** is the default overlay. Press **F3** to hide or show labels while spectating. The next raid starts with the overlay selected in your settings. You can rebind F3 in F12.
 
+Open **Bot info fields** in the spectator menu to choose what each label shows. Name, type, faction or role, SAIN personality, distance, health, carried value, ORBIT Ghost status, current action and COMET squad tactics are all on by default. Each has its own switch. You can show a squad tactic on its own, or turn every field off to hide the labels. The same switches are in **F12 > HORIZON**.
+
 In Fika, other living players get a label with their name and health. Labels show distance in metres from the free camera or from the player or bot you are following. **Show player labels** and **Show distance on labels** are both on by default. All bot actions are visible by default. Enable **Show actions only for followed bot** to hide action lines on the other labels. In freecam that filter hides every action line.
 
 Labels have a transparent background and outlined text. They show through scenery at any distance while the bot is on screen. Use the spectator menu or F12 to limit their range, require line of sight, or choose **BotDebug** or **Off**.

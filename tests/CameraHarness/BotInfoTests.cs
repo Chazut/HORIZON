@@ -182,7 +182,7 @@ internal static class BotInfoTests
         var camera = new Camera(); Physics.Hit = null;
         a.Inventory!.Items.Add(new Item { TemplateId = "ammo", StackObjectsCount = 30 });
         a.Inventory.Items.Add(new Item { TemplateId = "weapon" });
-        var labels = new BotLabels((p, w) => new BotLabelSample(data.ReadBot(p, w)), warnings.Add);
+        var labels = new BotLabels((p, w, fields) => new BotLabelSample(data.ReadBot(p, w, fields)), warnings.Add);
         roster.Refresh(world, 10);
         labels.Update(roster, world, camera, 10, 150);
         // The stopwatch can intentionally stop after one bot on slow machines.
@@ -198,7 +198,7 @@ internal static class BotInfoTests
         a.Inventory.Throw = true;
         for (int i = 0; i < 10; i++) labels.Update(roster, world, camera, 22, 150);
         check(alpha.Visible && alpha.Label.Contains("unavailable") && alpha.Label.Contains("350/440"), "Missing valuation preserves other bot information");
-        var syncedLabels = new BotLabels((_, _) => new BotLabelSample(("Reckless", "COMET: Crossfire", true),
+        var syncedLabels = new BotLabels((_, _, _) => new BotLabelSample(("Reckless", "COMET: Crossfire", true),
             true, (301f, 440f), 1234d), warnings.Add);
         int beforeHostLabel = a.Inventory.Reads;
         for (int i = 0; i < 10; i++) syncedLabels.Update(roster, world, camera, 22.5f, 150);
@@ -250,10 +250,71 @@ internal static class BotInfoTests
         check(!BotLabels.InView(camera, a, 0, out _), "Unlimited range still excludes off-screen bots");
         camera.Projection = new(.5f, .5f, -1);
         check(!BotLabels.InView(camera, a, 0, out _), "Unlimited range still excludes bots behind the camera");
+        CheckFieldChoices(check, a, camera);
         labels.Hide(roster); roster.Clear(); labels.Clear();
         check(roster.Bots.Count == 0, "Leaving a raid clears roster and scene references");
         check(BotPresentation.Kind("bossKilla").StartsWith("Boss") && BotPresentation.Kind("followerBully").StartsWith("Guard") && BotPresentation.Kind("exUsec") == "Rogue", "Roster types cover bosses, guards and rogues");
     }
+    private static void CheckFieldChoices(Action<bool, string> check, Player player, Camera camera)
+    {
+        var world = new GameWorld();
+        world.AllAlivePlayersList.Add(player);
+        player.Profile.Nickname = "Alpha";
+        player.transform.position = new Vector3(20, 0, 0);
+        camera.transform.position = default;
+        camera.Projection = new Vector3(.5f, .5f, 1);
+        var roster = new BotRoster();
+        roster.Refresh(world, 0);
+        var bot = roster.Bots.Single();
+        string action = "COMET: Reload";
+        int hostReads = 0;
+        var labels = new BotLabels((_, _, _) =>
+        {
+            hostReads++;
+            return new BotLabelSample(("Rat", action, true), true, (225f, 440f), 1234d);
+        }, _ => { });
+        int tick = 0;
+        string Caption(BotLabelFields fields)
+        {
+            labels.Update(roster, world, camera, ++tick, 0, true, fields);
+            return bot.Visible ? BotLabels.Caption(bot, false, null) : "";
+        }
+        var expected = new (BotLabelFields field, string text)[]
+        {
+            (BotLabelFields.Name, "Alpha"), (BotLabelFields.Type, "PMC"), (BotLabelFields.RoleDetail, "USEC"),
+            (BotLabelFields.Distance, "20 m"), (BotLabelFields.Personality, "Rat"),
+            (BotLabelFields.Health, "Health: 225/440"), (BotLabelFields.CarriedValue, $"Loot value (carried): {1234d:N0} RUB"),
+            (BotLabelFields.Ghost, "Ghost"), (BotLabelFields.Action, action)
+        };
+        foreach (var (field, text) in expected)
+        {
+            check(Caption(field) == text, $"Only {field} selected gives a single clean caption");
+            check(!Caption(BotLabelFields.All & ~field).Contains(text), $"Hiding {field} removes it independently");
+        }
+        var defaults = $"Alpha | PMC / USEC | Rat | 20 m\nHealth: 225/440\nLoot value (carried): {1234d:N0} RUB\nGhost | COMET: Reload";
+        check(Caption(BotLabelFields.All) == defaults, "All fields preserve the original label order, separators and units");
+        int before = hostReads;
+        check(Caption(BotLabelFields.None) == "" && !bot.Visible && hostReads == before, "All fields off hides the whole label without sampling");
+        check(Caption(BotLabelFields.Name) == "Alpha" && hostReads == before, "Identity-only labels do not request host samples");
+        foreach (string tactic in new[] { "COMET: Siege - watch exit", "COMET: Grenade suppression - throw", "COMET: Crossfire Maneuver Supporting" })
+        {
+            action = tactic;
+            check(Caption(BotLabelFields.SquadTactic) == tactic && BotLabels.Caption(bot, true, null) == ""
+                && BotLabels.Caption(bot, true, player) == tactic, "Squad tactic can be the only field, including follow-only mode");
+            check(Caption(BotLabelFields.Action) == "", "Squad tactics can be hidden while ordinary actions stay enabled");
+        }
+        action = "COMET: Reload";
+        check(Caption(BotLabelFields.SquadTactic) == "", "Ordinary action does not leak into a tactic-only label");
+        check(Caption(BotLabelFields.Ghost | BotLabelFields.Action) == "Ghost | COMET: Reload"
+            && BotLabels.Caption(bot, true, null) == "Ghost", "Ghost status can remain visible when an action is filtered out");
+
+        var inventory = player.Inventory ?? throw new InvalidOperationException("Expected the test bot to have an inventory");
+        int inventoryReads = inventory.Reads;
+        var local = new BotLabels((_, _, _) => new BotLabelSample(("", "SAIN: Seek Cover", false)), _ => { });
+        local.Update(roster, world, camera, ++tick, 0, true, BotLabelFields.Health | BotLabelFields.Action);
+        check(inventory.Reads == inventoryReads && !bot.Label.Contains("Loot value"), "Hidden carried value skips local inventory reads");
+    }
+
 }
 
 namespace SAIN.Interop

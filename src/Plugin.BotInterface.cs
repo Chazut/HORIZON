@@ -100,6 +100,7 @@ public sealed partial class Plugin
             if (!bot.Visible || (bot.Human ? !_settings.ShowHumanLabels.Value : !_botToolsEnabled) || !PmcNavigator.IsLivingRemote(bot.Player) ||
                 !BotLabels.InView(_camera.Camera, bot.Player, _settings.EffectiveLabelDistance, out var point)) continue;
             _labelContent.text = BotLabels.Caption(bot, _settings.ActionsOnlyWhenFollowing.Value, followed);
+            if (string.IsNullOrEmpty(_labelContent.text)) continue;
             float width = Mathf.Min(310 * scale, screen.x - 16);
             width = Mathf.Min(width, Mathf.Ceil(_labelStyle.CalcSize(_labelContent).x) + 20 * scale);
             float height = _labelStyle.CalcHeight(_labelContent, width - 20 * scale) + 12 * scale;

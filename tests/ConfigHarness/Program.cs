@@ -27,6 +27,20 @@ try
     var fresh = new SpectatorSettings(new ConfigFile(path, false));
     Check(!fresh.UseSpectatorFov.Value && fresh.ShowHumanLabels.Value && fresh.ShowDistance.Value &&
         !fresh.ActionsOnlyWhenFollowing.Value && fresh.UseFikaSelection.Value && fresh.HideExtractedWeapon.Value, "Spectator roadmap defaults, including actions for everyone");
+    Check(fresh.LabelOptions.Length == 10 && fresh.LabelOptions.Select(x => x.Field).Distinct().Count() == 10
+        && fresh.VisibleLabelFields == BotLabelFields.All, "Every existing label field has an independent switch, on by default");
+    foreach (var (field, setting) in fresh.LabelOptions)
+    {
+        setting.Value = false;
+        Check(fresh.VisibleLabelFields == (BotLabelFields.All & ~field), $"Only {field} is hidden");
+        Check(new SpectatorSettings(new ConfigFile(path, false)).VisibleLabelFields == fresh.VisibleLabelFields, $"{field} survives restart");
+        setting.Value = true;
+    }
+    var previous = Path.Combine(dir, "previous-horizon.cfg");
+    File.WriteAllText(previous, "[Interface]\nShow distance on labels = false\nShow actions only for followed bot = true\n");
+    var upgraded = new SpectatorSettings(new ConfigFile(previous, false));
+    Check(upgraded.VisibleLabelFields == (BotLabelFields.All & ~BotLabelFields.Distance) && upgraded.ActionsOnlyWhenFollowing.Value,
+        "Upgrade keeps existing distance and followed-only preferences while enabling new fields");
     fresh.UseSpectatorFov.Value = true; fresh.SpectatorFov.Value = 89;
     fresh.ActionsOnlyWhenFollowing.Value = true; fresh.ShowHumanLabels.Value = false;
     fresh.ShowDistance.Value = false; fresh.UseFikaSelection.Value = false; fresh.HideExtractedWeapon.Value = false;

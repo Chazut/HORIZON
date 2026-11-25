@@ -17,6 +17,17 @@ internal sealed class SpectatorSettings
     public ConfigEntry<float> SpectatorFov { get; }
     public ConfigEntry<bool> ShowHumanLabels { get; }
     public ConfigEntry<bool> ShowDistance { get; }
+    public (BotLabelFields Field, ConfigEntry<bool> Setting)[] LabelOptions { get; }
+    public BotLabelFields VisibleLabelFields
+    {
+        get
+        {
+            var fields = BotLabelFields.None;
+            foreach (var option in LabelOptions)
+                if (option.Setting.Value) fields |= option.Field;
+            return fields;
+        }
+    }
     public ConfigEntry<bool> ActionsOnlyWhenFollowing { get; }
     public ConfigEntry<bool> UseFikaSelection { get; }
     public ConfigEntry<bool> HideExtractedWeapon { get; }
@@ -74,8 +85,23 @@ internal sealed class SpectatorSettings
             SpectatorFov = config.Bind("Camera", "Spectator FOV", 60f, new ConfigDescription("Vertical field of view in degrees while the override is on.", new AcceptableValueRange<float>(30f, 110f)));
             UseFikaSelection = config.Bind("Camera", "Follow Fika selection", true, "Press the follow key to orbit the living player or bot selected in Fika's camera.");
             HideExtractedWeapon = config.Bind("Interface", "Hide extracted weapon", true, "Hide your held item model locally while watching after extraction.");
-            ShowHumanLabels = config.Bind("Interface", "Show player labels", true, "Show the name and health of other living human players in Bot info.");
+            ShowHumanLabels = config.Bind("Interface", "Show player labels", true, "Show Bot info labels for other living human players using your selected fields.");
             ShowDistance = config.Bind("Interface", "Show distance on labels", true, "Distance in metres from the free camera, or from the actor you are following.");
+            (BotLabelFields, ConfigEntry<bool>) Label(BotLabelFields field, string name, string help) =>
+                (field, config.Bind("Bot info fields", name, true, help));
+            LabelOptions = new[]
+            {
+                Label(BotLabelFields.Name, "Name", "Show the character's name."),
+                Label(BotLabelFields.Type, "Character type", "Show the type, such as PMC, Scav, Boss or Player."),
+                Label(BotLabelFields.RoleDetail, "Faction or role detail", "Show the bot's faction or named role when available, such as BEAR or Killa."),
+                Label(BotLabelFields.Personality, "SAIN personality", "Show the personality when SAIN provides it."),
+                (BotLabelFields.Distance, ShowDistance), // Keep the existing Interface key and saved preference.
+                Label(BotLabelFields.Health, "Health", "Show current and maximum health."),
+                Label(BotLabelFields.CarriedValue, "Carried loot value", "Show the estimated value of the bot's carried equipment in roubles."),
+                Label(BotLabelFields.Ghost, "ORBIT Ghost status", "Show Ghost while ORBIT marks the bot as dormant."),
+                Label(BotLabelFields.Action, "Current action", "Show the active AI action. COMET squad tactics have their own switch."),
+                Label(BotLabelFields.SquadTactic, "COMET squad tactic", "Show the active COMET squad tactic and role when reported in the action line.")
+            };
             ActionsOnlyWhenFollowing = config.Bind("Interface", "Show actions only for followed bot", false, "Hide action lines for other bots. In free camera this hides all bot actions. Other label details stay visible.");
             VisitDistance = config.Bind("General", "Camera visit distance", 2.5f, new ConfigDescription("Distance in metres from a selected bot when visiting or following. Nearby walls shorten this distance.", new AcceptableValueRange<float>(1f, 10f)));
             ShowHelp = config.Bind("General", "Show spectator help", true, "Show the small HORIZON panel while moving the camera. The spectator menu remains accessible when hidden.");

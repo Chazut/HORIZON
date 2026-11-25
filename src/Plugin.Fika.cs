@@ -19,10 +19,10 @@ public sealed partial class Plugin
         return _botData.ReadBot(bot, world);
     }
 
-    private BotLabelSample ReadBotLabel(Player bot, GameWorld world) =>
+    private BotLabelSample ReadBotLabel(Player bot, GameWorld world, BotLabelFields fields) =>
         _fika != null && !_fika.IsHost()
             ? _fikaFeed?.ReadRemote(bot, world) ?? new BotLabelSample(("", "Host action unavailable", false))
-            : new BotLabelSample(_botData.ReadBot(bot, world));
+            : new BotLabelSample(_botData.ReadBot(bot, world, fields));
 
     private void InstallFikaCamera()
     {

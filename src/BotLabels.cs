@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Text;
 using Comfort.Common;
 using EFT;
 using EFT.HandBook;
@@ -10,12 +11,14 @@ namespace Horizon;
 
 internal sealed class BotLabels
 {
-    private readonly Func<Player, GameWorld, BotLabelSample> _read;
+    private readonly Func<Player, GameWorld, BotLabelFields, BotLabelSample> _read;
     private readonly Action<string> _warning;
+    private readonly StringBuilder _text = new(160);
+    private BotLabelFields _fields;
     private int _cursor;
     private bool _failed;
     private bool _valueFailed;
-    public BotLabels(Func<Player, GameWorld, BotLabelSample> read, Action<string> warning)
+    public BotLabels(Func<Player, GameWorld, BotLabelFields, BotLabelSample> read, Action<string> warning)
     {
         _read = read;
         _warning = warning;
@@ -50,9 +53,19 @@ internal sealed class BotLabels
 
     // Up to two labels per frame; never gather inventories or mod state from OnGUI.
     // The time budget is checked between bots, all Unity access stays on the main thread.
-    public void Update(BotRoster roster, GameWorld world, Camera camera, float now, float distance, bool showOccluded = false, bool showDistance = false, Player? followed = null)
+    public void Update(BotRoster roster, GameWorld world, Camera camera, float now, float distance, bool showOccluded = false, BotLabelFields fields = BotLabelFields.All, Player? followed = null)
     {
-        if (roster.Labels.Count == 0) return;
+        if (_fields != fields)
+        {
+            foreach (var bot in roster.Labels)
+            {
+                bot.Visible = false;
+                bot.NextDetails = 0;
+                if ((_fields & BotLabelFields.CarriedValue) == 0) bot.NextValue = 0;
+            }
+            _fields = fields;
+        }
+        if (fields == BotLabelFields.None || roster.Labels.Count == 0) return;
         long start = Stopwatch.GetTimestamp();
         int refreshed = 0, checkedBots = 0;
         while (checkedBots++ < roster.Labels.Count && refreshed < 2)
@@ -67,40 +80,8 @@ internal sealed class BotLabels
                 var player = bot.Player;
                 bot.Visible = PmcNavigator.IsLivingRemote(player) && InView(camera, player, distance, out _) &&
                     (showOccluded || ClearLine(camera, player, player.Position + Vector3.up * 1.8f) || ClearLine(camera, player, player.Position + Vector3.up));
-                string range = "";
-                if (bot.Visible && showDistance)
-                {
-                    Vector3 origin = followed != null ? followed.Position : camera.transform.position;
-                    range = $" | {(player.Position - origin).magnitude:0} m";
-                }
-                if (bot.Visible && bot.Human)
-                {
-                    var hp = Health(player);
-                    bot.Label = bot.LabelWithoutAction = $"{bot.Name} | Player{range}\nHealth: {hp.current:0}/{hp.maximum:0}";
-                }
-                else if (bot.Visible)
-                {
-                    var sample = _read(player, world);
-                    var detail = sample.Behavior;
-                    var health = sample.FromHost ? sample.Health : Health(player);
-                    if (sample.FromHost) bot.Value = sample.Value;
-                    else if (now >= bot.NextValue)
-                    {
-                        bot.NextValue = now + 5f;
-                        try { bot.Value = InventoryValue(player); }
-                        catch (Exception e)
-                        {
-                            bot.Value = null;
-                            if (!_valueFailed) _warning("Bot labels: inventory estimate unavailable: " + e.GetBaseException().Message);
-                            _valueFailed = true;
-                        }
-                    }
-                    string personality = detail.personality.Length > 0 ? " | " + detail.personality : "";
-                    string value = bot.Value.HasValue ? bot.Value.Value.ToString("N0") + " RUB" : "unavailable";
-                    string hp = health is { } h ? $"{h.current:0}/{h.maximum:0}" : "unavailable";
-                    bot.LabelWithoutAction = $"{bot.Name} | {bot.Kind}{personality}{range}\nHealth: {hp}\nLoot value (carried): {value}";
-                    bot.Label = $"{bot.LabelWithoutAction}\n{(detail.ghost ? "Ghost | " : "")}{detail.action}";
-                }
+                if (bot.Visible)
+                    RefreshCaption(bot, world, camera, now, bot.Human ? fields & BotLabelFields.Human : fields, followed);
             }
             catch (Exception e)
             {
@@ -111,6 +92,77 @@ internal sealed class BotLabels
             if ((Stopwatch.GetTimestamp() - start) * 1000d / Stopwatch.Frequency >= 1.5) break;
         }
     }
+
+    private void RefreshCaption(SpectatorBot bot, GameWorld world, Camera camera, float now, BotLabelFields fields, Player? followed)
+    {
+        var player = bot.Player;
+        var sample = !bot.Human && (fields & BotLabelFields.HostData) != 0 ? _read(player, world, fields) : default;
+        _text.Clear();
+        if ((fields & BotLabelFields.Name) != 0) Append(bot.Name);
+        var kindFields = fields & (BotLabelFields.Type | BotLabelFields.RoleDetail);
+        if (kindFields != 0)
+        {
+            string kind = bot.Human ? "Player" : bot.Kind;
+            int split = kind.IndexOf(" / ", StringComparison.Ordinal);
+            if (kindFields == (BotLabelFields.Type | BotLabelFields.RoleDetail)) Append(kind);
+            else if (kindFields == BotLabelFields.Type) Append(split < 0 ? kind : kind.Substring(0, split));
+            else if (split >= 0) Append(kind.Substring(split + 3));
+        }
+        if ((fields & BotLabelFields.Personality) != 0) Append(sample.Behavior.personality);
+        if ((fields & BotLabelFields.Distance) != 0)
+        {
+            Vector3 origin = followed != null ? followed.Position : camera.transform.position;
+            Append($"{(player.Position - origin).magnitude:0} m");
+        }
+        if ((fields & BotLabelFields.Health) != 0)
+        {
+            var health = sample.FromHost ? sample.Health : Health(player);
+            Append(health is { } hp ? $"Health: {hp.current:0}/{hp.maximum:0}" : "Health: unavailable", "\n");
+        }
+        if ((fields & BotLabelFields.CarriedValue) != 0)
+        {
+            if (sample.FromHost) bot.Value = sample.Value;
+            else if (now >= bot.NextValue)
+            {
+                bot.NextValue = now + 5f;
+                try { bot.Value = InventoryValue(player); }
+                catch (Exception e)
+                {
+                    bot.Value = null;
+                    if (!_valueFailed) _warning("Bot labels: inventory estimate unavailable: " + e.GetBaseException().Message);
+                    _valueFailed = true;
+                }
+            }
+            string value = bot.Value.HasValue ? bot.Value.Value.ToString("N0") + " RUB" : "unavailable";
+            Append("Loot value (carried): " + value, "\n");
+        }
+        bool ghost = (fields & BotLabelFields.Ghost) != 0 && sample.Behavior.ghost;
+        if (ghost) Append("Ghost", "\n");
+        bot.LabelWithoutAction = _text.ToString();
+        string? action = sample.Behavior.action;
+        if (!string.IsNullOrEmpty(action) && (fields & ActionField(action!)) != 0)
+        {
+            Append(action, ghost ? " | " : "\n");
+            bot.Label = _text.ToString();
+        }
+        else bot.Label = bot.LabelWithoutAction;
+        bot.Visible = bot.Label.Length != 0;
+    }
+
+    private void Append(string? value, string separator = " | ")
+    {
+        if (string.IsNullOrEmpty(value)) return;
+        if (_text.Length != 0) _text.Append(separator);
+        _text.Append(value);
+    }
+
+    // The Fika feed carries the same resolved action string as solo. Squad roles occupy
+    // the current action line only while the corresponding tactic is actually active.
+    private static BotLabelFields ActionField(string action) =>
+        action.StartsWith("COMET: Crossfire", StringComparison.Ordinal) ||
+        action.StartsWith("COMET: Siege", StringComparison.Ordinal) ||
+        action.StartsWith("COMET: Grenade suppression", StringComparison.Ordinal)
+            ? BotLabelFields.SquadTactic : BotLabelFields.Action;
 
     internal static (float current, float maximum) Health(Player player)
     {
