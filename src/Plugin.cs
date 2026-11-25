@@ -13,7 +13,7 @@ using UnityEngine;
 
 namespace Horizon;
 
-[BepInPlugin(Id, "HORIZON", "1.3.0")]
+[BepInPlugin(Id, "HORIZON", "1.4.0")]
 [BepInDependency("com.terkoiz.freecam", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("com.fika.core", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(KillcamBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]

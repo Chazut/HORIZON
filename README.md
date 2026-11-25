@@ -11,7 +11,7 @@
 
 Keep watching your SPT raid after death or extraction. Fly around the map and see what the bots do next.
 
-**HORIZON 1.3.0 for SPT 4.1.6.** Solo uses Terkoiz Freecam 1.4.8 or later. Co-op uses Fika's built-in spectator camera.
+**HORIZON 1.4.0 for SPT 4.1.6.** Solo uses Terkoiz Freecam 1.4.8 or later. Co-op uses Fika's built-in spectator camera.
 
 ## What it does
 

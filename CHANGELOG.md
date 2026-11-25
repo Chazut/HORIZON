@@ -1,3 +1,21 @@
+# HORIZON 1.4.0
+
+## Features
+
+- **Build your own BotInfo labels.** Choose which details to show and which ones share a line, including bot difficulty and distance. Actions stay visible for all bots by default, or you can show them only for the bot you're following.
+- **Follow the raid on DynamicMaps.** The map arrow tracks your free camera or the bot or teammate you're following, including their floor and heading. Hold **Left Alt** to drag the minimap where you want it.
+- **See COMET squad roles.** BotInfo shows who's watching an exit during a siege, who's throwing a suppression grenade and who's holding the angle.
+- **Adjust your spectator view.** Set your own field of view. In Fika, you can also show living players' names, health and distance.
+
+## Changes
+
+- If footsteps go quiet in solo after Killcam or after losing a followed bot, HORIZON now records what the spectator camera could hear for troubleshooting.
+
+## Fixes
+
+- **Fika follow selection.** Pressing **F** now follows the bot or teammate selected in Fika. Clicking a name in HORIZON's list still takes priority.
+- Your held weapon is now hidden by default when you spectate after extracting. You can turn it back on in the spectator settings.
+
 # HORIZON 1.3.0
 
 ## Features
