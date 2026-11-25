@@ -42,6 +42,9 @@ namespace Horizon
                 case "COMET:DefendUnknown": return clean == "Freeze" ? comet : native;
                 case "COMET:Hold": return clean == "Freeze" ? comet : native;
                 case "COMET:Flank": return clean == "ShiftCover" ? comet : native;
+                case "COMET:Siege - watch exit": return clean == "Freeze" ? comet : native;
+                case "COMET:Grenade suppression - throw": return clean == "ThrowGrenade" ? comet : native;
+                case "COMET:Grenade suppression - hold angle": return clean == "Freeze" || clean == "StandAndShoot" ? comet : native;
                 case "COMET:Search": return clean == "Search" ? comet : native;
                 // SAIN continues an accepted Retreat through SeekCover. COMET clears its
                 // label when that continuation no longer belongs to the same plan.

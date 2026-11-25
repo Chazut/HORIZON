@@ -73,6 +73,31 @@ internal static class BotInfoTests
         check(combat.personality == "Rat" && combat.action == "COMET: Shoot", "Manager lookup reads SAIN personality and matching COMET execution");
         CometApi.Current = "COMET:Push";
         check(data.ReadBot(a, world).action == "SAIN: Stand And Shoot", "Stale COMET plan cannot claim a different native action");
+        foreach (var (role, action) in new[] {
+            ("Siege - watch exit", "Freeze"),
+            ("Grenade suppression - throw", "ThrowGrenade"),
+            ("Grenade suppression - hold angle", "Freeze"),
+            ("Grenade suppression - hold angle", "StandAndShoot"),
+            ("Flank", "ShiftCover")
+        })
+        {
+            CometApi.Current = "COMET:" + role;
+            sain.Decision.CurrentCombatDecision = action;
+            check(data.ReadBot(a, world).action == "COMET: " + role, $"BotInfo shows the active {role} role for {action}");
+            sain.Decision.CurrentSelfDecision = "Reload";
+            check(data.ReadBot(a, world).action == "SAIN: Reload", $"{role} yields to an actual reload");
+            sain.Decision.CurrentSelfDecision = "None";
+            sain.Decision.CurrentCombatDecision = "SeekCover";
+            check(data.ReadBot(a, world).action == "SAIN: Seek Cover", $"BotInfo drops {role} when the bot changes action");
+        }
+        CometApi.Current = "";
+        sain.Decision.CurrentCombatDecision = "Freeze";
+        check(data.ReadBot(a, world).action == "SAIN: Freeze", "Holding an angle alone does not imply a siege or grenade plan");
+        CometApi.Current = "COMET:Siege - watch exit";
+        OrbitApi.Ghost = true;
+        check(data.ReadBot(a, world).action == "SAIN: Freeze", "Dormant bots do not claim an active siege");
+        OrbitApi.Ghost = false;
+        sain.Decision.CurrentCombatDecision = "StandAndShoot";
         sain.Decision.CurrentSelfDecision = "Reload";
         CometApi.Current = "COMET:Reload";
         check(data.ReadBot(a, world).action == "COMET: Reload", "Self action takes priority over combat");
