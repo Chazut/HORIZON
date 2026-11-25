@@ -6,6 +6,27 @@ using UnityEngine;
 
 namespace Horizon;
 
+// Only the local hands model: the weapon can be parented outside the removed body.
+internal sealed class ExtractedWeaponView
+{
+    private GameObject? _model;
+    private Renderer[] _hidden = Array.Empty<Renderer>();
+
+    internal void Update(Player? extracted)
+    {
+        var hands = extracted != null ? extracted.HandsController : null;
+        var model = hands != null ? hands.ControllerGameObject : null;
+        if (ReferenceEquals(model, _model)) return;
+        foreach (var renderer in _hidden)
+            if (renderer != null) renderer.forceRenderingOff = false;
+        _hidden = Array.Empty<Renderer>();
+        _model = model;
+        if (model == null) return;
+        _hidden = Array.FindAll(model.GetComponentsInChildren<Renderer>(true), renderer => !renderer.forceRenderingOff);
+        foreach (var renderer in _hidden) renderer.forceRenderingOff = true;
+    }
+}
+
 // Keep the profile/camera alive for the native result screen, remove the body from the raid.
 // Health and manual player ticks are suspended separately by the plugin while this is active.
 internal sealed class ExtractedPlayer

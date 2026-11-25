@@ -25,6 +25,15 @@ try
 {
     string path = Path.Combine(dir, "fresh.cfg");
     var fresh = new SpectatorSettings(new ConfigFile(path, false));
+    Check(!fresh.UseSpectatorFov.Value && fresh.ShowHumanLabels.Value && fresh.ShowDistance.Value &&
+        !fresh.ActionsOnlyWhenFollowing.Value && fresh.UseFikaSelection.Value && fresh.HideExtractedWeapon.Value, "Spectator roadmap defaults, including actions for everyone");
+    fresh.UseSpectatorFov.Value = true; fresh.SpectatorFov.Value = 89;
+    fresh.ActionsOnlyWhenFollowing.Value = true; fresh.ShowHumanLabels.Value = false;
+    fresh.ShowDistance.Value = false; fresh.UseFikaSelection.Value = false; fresh.HideExtractedWeapon.Value = false;
+    var preferences = new SpectatorSettings(new ConfigFile(path, false));
+    Check(preferences.UseSpectatorFov.Value && preferences.SpectatorFov.Value == 89 && preferences.ActionsOnlyWhenFollowing.Value &&
+        !preferences.ShowHumanLabels.Value && !preferences.ShowDistance.Value && !preferences.UseFikaSelection.Value && !preferences.HideExtractedWeapon.Value,
+        "All spectator preferences persist across restarts");
     Check(fresh.Enabled.Value && fresh.AfterDeath.Value && fresh.AfterExtraction.Value, "Fresh install continues after death and extraction");
     Check(fresh.Targets.Value == BotFilter.PmcOnly && fresh.CycleBots.Value && !fresh.ReverseWheel.Value, "PMC-only wheel navigation by default");
     Check(fresh.VisitDistance.Value == 2.5f && fresh.Overlay.Value != SpectatorOverlay.BotDebug && fresh.ShowHelp.Value, "Default camera/help preferences and BotDebug OFF");

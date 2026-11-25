@@ -27,6 +27,21 @@ internal sealed class FreecamBridge
     private readonly SpectatorEffects _effects = new();
     private Action<Quaternion>? _alignFika;
     private bool _ownsCursor;
+    private float? _originalFov;
+
+    internal void SetSpectatorFov(bool enabled, float degrees)
+    {
+        if (Camera != null && enabled)
+        {
+            _originalFov ??= Camera.fieldOfView;
+            if (Camera.fieldOfView != degrees) Camera.fieldOfView = degrees;
+        }
+        else if (_originalFov.HasValue)
+        {
+            if (Camera != null) Camera.fieldOfView = _originalFov.Value;
+            _originalFov = null;
+        }
+    }
     public bool Ready => Script != null && Script.gameObject.activeInHierarchy &&
         (_alignFika != null ? Script.enabled && Camera != null : Controller != null);
 
@@ -131,6 +146,7 @@ internal sealed class FreecamBridge
 
     public void Release(bool ending = false)
     {
+        SetSpectatorFov(false, 0);
         if (_alignFika != null)
         {
             ReleaseCursor();

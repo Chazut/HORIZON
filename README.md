@@ -49,6 +49,8 @@ Use Freecam's usual movement controls. **Mouse wheel** visits bots; **Escape** o
 
 **Bot info** is the default overlay. Press **F3** to hide or show labels while spectating. The next raid starts with the overlay selected in your settings. You can rebind F3 in F12.
 
+In Fika, other living players get a label with their name and health. Labels show distance in metres from the free camera or from the player or bot you are following. **Show player labels** and **Show distance on labels** are both on by default. All bot actions are visible by default. Enable **Show actions only for followed bot** to hide action lines on the other labels. In freecam that filter hides every action line.
+
 Labels have a transparent background and outlined text. They show through scenery at any distance while the bot is on screen. Use the spectator menu or F12 to limit their range, require line of sight, or choose **BotDebug** or **Off**.
 
 Carried value estimates the entire equipped inventory, including gear and item stacks, using handbook prices. It is refreshed every five seconds; it is not profit earned during the raid. No Raid Review installation is needed.
@@ -56,6 +58,10 @@ Carried value estimates the entire equipped inventory, including gear and item s
 Enable **Show bot list** in the menu or F12. Hold **Left Alt** or open **Escape**, then click a bot to move the camera or drag the list by its title. The list includes all living bot types regardless of your mouse-wheel filter. A click preserves follow mode if it was already enabled.
 
 Press **F** to attach the camera and orbit the bot with your mouse. **R** locks the camera to the bot's viewing direction or returns to mouse orbit. Press **F** again to detach. Both keys, mouse sensitivity and camera distance are configurable in F12. Hold **Left Alt** to drag the help panel by its title, or drag the open menu by its title. Their positions are saved.
+
+With **Follow Fika selection** enabled (default), F uses the teammate or bot selected in Fika. Clicking a name in HORIZON's bot list gives that selection priority. The server controls permission to spectate bots.
+
+Enable **Override spectator FOV** to set a vertical field of view between 30 and 110 degrees. The camera keeps its native FOV by default. **Hide extracted weapon** is on by default and hides your held item's model locally while you spectate after extraction. Both settings are in the spectator menu and F12.
 
 Hold **Left Ctrl + mouse wheel** to move closer/further without switching bots. In follow mode it adjusts the distance to the bot; in Freecam it moves along your viewing direction. Change the shortcut and speed in F12.
 

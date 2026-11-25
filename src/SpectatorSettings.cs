@@ -13,6 +13,13 @@ internal sealed class SpectatorSettings
     public ConfigEntry<bool> CycleBots { get; }
     public ConfigEntry<BotFilter> Targets { get; }
     public ConfigEntry<bool> ReverseWheel { get; }
+    public ConfigEntry<bool> UseSpectatorFov { get; }
+    public ConfigEntry<float> SpectatorFov { get; }
+    public ConfigEntry<bool> ShowHumanLabels { get; }
+    public ConfigEntry<bool> ShowDistance { get; }
+    public ConfigEntry<bool> ActionsOnlyWhenFollowing { get; }
+    public ConfigEntry<bool> UseFikaSelection { get; }
+    public ConfigEntry<bool> HideExtractedWeapon { get; }
     public ConfigEntry<float> VisitDistance { get; }
     public ConfigEntry<bool> ShowHelp { get; }
     public ConfigEntry<SpectatorOverlay> Overlay { get; }
@@ -63,6 +70,13 @@ internal sealed class SpectatorSettings
             config.Remove(legacy.Definition);
             Targets = config.Bind("General", "Camera targets", BotFilter.PmcOnly, "PmcOnly: living AI USEC/BEAR. AllBots: also Scavs, bosses, guards, raiders and other AI. Humans, dead and inactive characters are excluded. Does not change bot behavior.");
             ReverseWheel = config.Bind("General", "Reverse mouse wheel", false, "Reverse the previous/next direction of the mouse wheel. Does not change the menu buttons.");
+            UseSpectatorFov = config.Bind("Camera", "Override spectator FOV", false, "Use a custom field of view while spectating. Turn off to return to the camera's original field of view.");
+            SpectatorFov = config.Bind("Camera", "Spectator FOV", 60f, new ConfigDescription("Vertical field of view in degrees while the override is on.", new AcceptableValueRange<float>(30f, 110f)));
+            UseFikaSelection = config.Bind("Camera", "Follow Fika selection", true, "Press the follow key to orbit the living player or bot selected in Fika's camera.");
+            HideExtractedWeapon = config.Bind("Interface", "Hide extracted weapon", true, "Hide your held item model locally while watching after extraction.");
+            ShowHumanLabels = config.Bind("Interface", "Show player labels", true, "Show the name and health of other living human players in Bot info.");
+            ShowDistance = config.Bind("Interface", "Show distance on labels", true, "Distance in metres from the free camera, or from the actor you are following.");
+            ActionsOnlyWhenFollowing = config.Bind("Interface", "Show actions only for followed bot", false, "Hide action lines for other bots. In free camera this hides all bot actions. Other label details stay visible.");
             VisitDistance = config.Bind("General", "Camera visit distance", 2.5f, new ConfigDescription("Distance in metres from a selected bot when visiting or following. Nearby walls shorten this distance.", new AcceptableValueRange<float>(1f, 10f)));
             ShowHelp = config.Bind("General", "Show spectator help", true, "Show the small HORIZON panel while moving the camera. The spectator menu remains accessible when hidden.");
             var oldOverlay = config.Bind("General", "Automatic BotDebug overlay", false);

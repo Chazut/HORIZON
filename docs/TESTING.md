@@ -60,6 +60,13 @@ For a live check, connect two graphical players to a hosted raid. Repeat with a 
 - Repeat with `allowSpectateFreeCam` on and `allowSpectateBots` off. F6 should open the menu and zoom should work. F3, follow, the list and wheel cycling should reveal no bots. Re-enable bot spectating on the next raid and verify that the player's saved overlay and list settings return.
 - Turn off spectator freecam and verify that Fika keeps control. Check automatic extraction, transit, revive, disconnect and a second raid for stale overlays or input. Compare each player's saved outcome to their own exit.
 
+## Spectator labels, FOV and extraction visuals
+
+- Follow a teammate in Fika, press F, then repeat after selecting another human and a bot. Click a bot in HORIZON with a different native target selected. Each visit should use the latest selection. Repeat with bot spectating disabled. Only human labels and human follow should be available.
+- Compare label distances from freecam, native Fika follow and HORIZON orbit. Toggle player labels and follow-only actions separately. Filtering actions should leave health and distance visible on other labels.
+- Adjust the FOV slider, disable it mid-raid and return to gameplay. Check that the original FOV returns in each provider.
+- Extract with a weapon equipped. Toggle weapon hiding and check the extraction point. Repeat with an item in hands and after death. Check that world loot and teammates' weapons are visible and the extracted loadout is intact.
+
 ## Solo raid lifecycle
 
 The plugin delays the local death shutdown before `LocalGame.Stop` stops bot scenarios. It lets the real death callbacks, corpse creation and kill tracking run. Exit and timeout resume the native game shutdown and SPT profile-saving flow with the captured outcome. Extraction is intercepted at the same shutdown boundary after the game has decided Survived/Runner. The extracted body is removed from the world/AI player lists and deactivated (with its camera detached if necessary), without killing it or unloading its profile. Entry failures restore the touched state and allow the native ending. Freecam supplies the camera and its controls; it is not bundled or modified.

@@ -17,7 +17,7 @@ internal sealed class PmcNavigator
     private Player? _target;
     public bool Following { get; private set; }
     public bool LockOrientation { get; private set; }
-    public Player? FollowedBot => Following ? _target : null;
+    public Player? FollowedTarget => Following ? _target : null;
     public string? SelectedId => _target != null ? _target.ProfileId : null;
     private float _yaw, _pitch;
     private float _configuredDistance = float.NaN, _distance;
@@ -53,15 +53,22 @@ internal sealed class PmcNavigator
         _pitch = 12f;
     }
 
-    public void ToggleFollow(GameWorld world, FreecamBridge camera, float distance)
+    public void ToggleFollow(GameWorld world, FreecamBridge camera, float distance, Player? selected = null)
     {
         if (Following) { Following = false; return; }
+        if (IsLivingRemote(selected) && world.AllAlivePlayersList.Contains(selected!))
+        {
+            _target = selected;
+            _cycle.Select(selected!.ProfileId);
+            Caption = IsBot(selected) ? BotNames.Display(selected.Profile?.Nickname, selected.ProfileId) : selected.Profile?.Nickname ?? selected.ProfileId;
+        }
         if (!TargetAlive(world)) Move(world, camera, 1, distance);
         Following = TargetAlive(world);
         if (Following)
         {
             LockOrientation = false;
             SeedOrbit(_target!);
+            Place(camera, _target!, distance);
         }
     }
 
@@ -89,7 +96,9 @@ internal sealed class PmcNavigator
     }
 
     internal static Func<Player, bool>? IsObservedBot;
-    internal static bool IsLivingBot(Player player) => player != null && !player.IsYourPlayer && (player.IsAI || IsObservedBot?.Invoke(player) == true) &&
+    internal static bool IsBot(Player player) => player.IsAI || IsObservedBot?.Invoke(player) == true;
+    internal static bool IsLivingBot(Player player) => IsLivingRemote(player) && IsBot(player);
+    internal static bool IsLivingRemote(Player? player) => player != null && !player.IsYourPlayer &&
         player.HealthController?.IsAlive == true && player.gameObject.activeInHierarchy && !string.IsNullOrEmpty(player.ProfileId);
 
     // The list deliberately includes all bot types, independently of the wheel filter.

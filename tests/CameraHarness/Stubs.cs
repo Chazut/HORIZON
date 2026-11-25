@@ -10,6 +10,7 @@ namespace UnityEngine
         public float x, y, z;
         public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
         public static Vector3 up => new(0, 1, 0);
+        public float magnitude => MathF.Sqrt(sqrMagnitude);
         public float sqrMagnitude => x*x+y*y+z*z;
         public Vector3 normalized => this * (1f / MathF.Sqrt(sqrMagnitude));
         public static Vector3 operator +(Vector3 a, Vector3 b) => new(a.x+b.x, a.y+b.y, a.z+b.z);
@@ -35,6 +36,7 @@ namespace UnityEngine
         public bool activeInHierarchy => activeSelf && (transform.parent?.gameObject.activeInHierarchy ?? true);
         public void SetActive(bool value) => activeSelf = value;
         public Dictionary<Type, object> Components = new();
+        public T[] GetComponentsInChildren<T>(bool inactive) => Components.Values.OfType<T>().ToArray();
         public object? GetComponent(Type type) => Components.GetValueOrDefault(type);
     }
     public class Component
@@ -50,13 +52,14 @@ namespace UnityEngine
     public static class Time { public static float unscaledTime; }
     public class Camera : MonoBehaviour
     {
+        public float fieldOfView = 60f;
         public static Camera main { get; set; } = new();
         public bool isActiveAndEnabled => enabled && gameObject.activeInHierarchy;
         public Vector3 Projection = new(.5f, .5f, 1);
         public Vector3 WorldToViewportPoint(Vector3 value) => Projection;
     }
     public class Collider : MonoBehaviour { }
-    public class Renderer : MonoBehaviour { }
+    public class Renderer : MonoBehaviour { public bool forceRenderingOff; }
     public enum QueryTriggerInteraction { Ignore }
     public struct RaycastHit { public Transform transform; public Vector3 point; }
     public static class Physics
@@ -107,6 +110,8 @@ namespace EFT
     public class BotOwner : UnityEngine.MonoBehaviour { public bool Active = true; public BotGroup? BotsGroup; public Brain Brain = new(); }
     public class Player : UnityEngine.MonoBehaviour, IPlayer
     {
+        public class AbstractHandsController : UnityEngine.MonoBehaviour { public UnityEngine.GameObject ControllerGameObject = new(); }
+        public AbstractHandsController? HandsController;
         public EPointOfView PointOfView;
         public bool IsAI, IsYourPlayer;
         public Health HealthController = new();

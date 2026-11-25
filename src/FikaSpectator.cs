@@ -13,7 +13,7 @@ internal sealed class FikaSpectator
     private readonly Func<bool> _headless, _transit, _allowFree;
     internal readonly Func<bool> IsHost, AllowSpectateBots;
     private readonly PropertyInfo _active, _extracted;
-    private readonly FieldInfo _observedAi, _following, _inputDisabled, _yaw, _pitch;
+    private readonly FieldInfo _observedAi, _currentPlayer, _following, _inputDisabled, _yaw, _pitch;
     private readonly MethodInfo _detach;
 
     private static Func<bool> ReadBool(Type type, string name, object? instance = null)
@@ -43,6 +43,7 @@ internal sealed class FikaSpectator
         _detach = ScriptType.GetMethod("DetachCamera", Type.EmptyTypes) ?? throw new MissingMethodException(ScriptType.FullName, "DetachCamera");
         FieldInfo LookField(string name) => ScriptType.GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)
             ?? throw new MissingFieldException(ScriptType.FullName, name);
+        _currentPlayer = LookField("_currentPlayer");
         _following = LookField("_isFollowing");
         _inputDisabled = LookField("_disableInput");
         _yaw = LookField("_yaw");
@@ -60,10 +61,15 @@ internal sealed class FikaSpectator
         return (bool)_extracted.GetValue(script)! ? afterExtraction : !player.HealthController.IsAlive && afterDeath;
     }
 
+    internal Player? Selection(Behaviour script, bool followingOnly = false) =>
+        !followingOnly || (bool)_following.GetValue(script)! ? _currentPlayer.GetValue(script) as Player : null;
+
+    internal bool Extracted(Behaviour script) => (bool)_extracted.GetValue(script)!;
+
     internal void Align(Behaviour script, Quaternion rotation)
     {
         // Fika accumulates its own yaw/pitch. Resume native mouse look from the pose chosen by HORIZON.
-        if ((bool)_following.GetValue(script)!) _detach.Invoke(script, null);
+        if ((bool)_following.GetValue(script)! || Selection(script) != null) _detach.Invoke(script, null);
         var angles = rotation.eulerAngles;
         _yaw.SetValue(script, angles.y);
         _pitch.SetValue(script, Mathf.DeltaAngle(0, angles.x));

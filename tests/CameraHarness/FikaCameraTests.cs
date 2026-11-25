@@ -100,9 +100,58 @@ internal static class FikaCameraTests
         navigator.Move(world, bridge, 1);
         check(navigator.Caption == "Sanja Zavodskoy (1/1)" && replica.Profile.Nickname == "Саня Заводской",
             "Cycling uses the same display name and preserves the network profile");
+        var teammate = new FikaPlayer { ProfileId = "human-A" };
+        teammate.Profile.Nickname = "Teammate";
+        world.RegisterPlayer(teammate);
+        native.Select(teammate, true);
+        check(fika.Selection(native, true) == teammate, "Native follow identifies the human distance origin");
+        navigator.ToggleFollow(world, bridge, 3, fika.Selection(native));
+        check(navigator.FollowedTarget == teammate && navigator.Caption == "Teammate" && native.Detached,
+            "F takes over the native human selection even with another HORIZON bot selected");
+        navigator.ToggleFollow(world, bridge, 3);
+        native.Select(replica, false);
+        check(fika.Selection(native, true) == null, "Jumping without native follow leaves the camera as the distance origin");
+        navigator.ToggleFollow(world, bridge, 3, fika.Selection(native));
+        check(navigator.FollowedTarget == replica, "F also adopts a highlighted Fika bot after a jump");
+        navigator.ToggleFollow(world, bridge, 3);
+        native.Select(teammate, false);
+        navigator.Visit(world, bridge, replica, 3);
+        check(fika.Selection(native) == null, "An explicit HORIZON visit supersedes a stale native selection");
+        roster.Refresh(world, 5, includeHumans: true);
+        check(roster.Labels.Count == 2 && roster.Bots.Single().Player == replica, "Human labels leave the bot list and Fika polling bot-only");
+        int samples = 0;
+        var labels = new BotLabels((_, _) => { samples++; return new BotLabelSample(("Rat", "Taking cover", false)); }, _ => {});
+        teammate.transform.position = new Vector3(10, 0, 0);
+        replica.transform.position = new Vector3(30, 0, 0);
+        camera.transform.position = new Vector3(4, 0, 0);
+        void Refresh(float t, Player? followed)
+        {
+            for (int i = 0; i < 3; i++) labels.Update(roster, world, camera, t, 0, true, true, followed);
+        }
+        Refresh(5, null);
+        var human = roster.Labels.Single(p => p.Human);
+        var ai = roster.Bots.Single();
+        check(human.Label == "Teammate | Player | 6 m\nHealth: 350/440" && samples == 1, "Freecam human label uses replicated health without asking the host for AI data");
+        Refresh(6, teammate);
+        check(ai.Label.Contains("20 m") && human.Label.Contains("0 m"), "Both labels measure from the followed actor");
+        check(BotLabels.Caption(ai, false, null).Contains("Taking cover") && !BotLabels.Caption(ai, true, null).Contains("Taking cover") &&
+            BotLabels.Caption(ai, true, replica).Contains("Taking cover") && BotLabels.Caption(ai, true, teammate).Contains("Health:") &&
+            !BotLabels.Caption(ai, true, teammate).Contains("Taking cover"), "Follow-only changes just the action line, immediately");
+        for (int i = 0; i < 3; i++) labels.Update(roster, world, camera, 7, 0, true, false, teammate);
+        check(!human.Label.Contains(" m") && !ai.Label.Contains(" m") && ai.Label.Contains("Taking cover"), "Distance can be disabled independently");
+        teammate.HealthController.IsAlive = false;
+        roster.Refresh(world, 7, includeHumans: true);
+        check(roster.Labels.All(p => !p.Human), "Dead or removed humans no longer appear in the overlay");
+        teammate.HealthController.IsAlive = true;
+        roster.Refresh(world, 8, includeHumans: true, includeBots: false);
+        check(roster.Labels.Single().Human && roster.Bots.Count == 0, "Freecam-only Fika permissions expose human labels without bot data");
+        roster.Refresh(world, 8, includeHumans: false, includeBots: false);
+        check(roster.Labels.Count == 0, "Disabling player labels removes humans on the same update");
+        bridge.SetSpectatorFov(true, 95);
+        check(camera.fieldOfView == 95, "Fika freecam FOV override");
         PmcNavigator.IsObservedBot = null;
         bridge.Release();
-        check(native.enabled && native.IsActive && !bridge.Ready && !Cursor.visible && Cursor.lockState == CursorLockMode.Confined,
+        check(camera.fieldOfView == 60 && native.enabled && native.IsActive && !bridge.Ready && !Cursor.visible && Cursor.lockState == CursorLockMode.Confined,
             "Detach releases references and restores the cursor without turning off Fika");
     }
 }
@@ -123,6 +172,8 @@ namespace Fika.Core.Main.FreeCamera
     {
         public bool IsActive { get; set; }
         public bool Extracted { get; set; }
+        private FikaPlayer? _currentPlayer;
+        public void Select(FikaPlayer player, bool follow) { _currentPlayer = player; _isFollowing = follow; }
         private bool _isFollowing = true, _disableInput;
         public void DisableInput(bool disabled) => _disableInput = disabled;
         public bool InputDisabled => _disableInput;
@@ -130,6 +181,6 @@ namespace Fika.Core.Main.FreeCamera
         public bool Detached => !_isFollowing;
         public float Yaw => _yaw;
         public float Pitch => _pitch;
-        public void DetachCamera() => _isFollowing = false;
+        public void DetachCamera() { _isFollowing = false; _currentPlayer = null; }
     }
 }

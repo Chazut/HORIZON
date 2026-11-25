@@ -48,26 +48,37 @@ internal sealed class BotLabels
         !Physics.Linecast(camera.transform.position, target, out var hit, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) ||
         hit.transform.IsChildOf(player.Transform.Original);
 
-    // Up to two bots per frame; never gather inventories or mod state from OnGUI.
+    // Up to two labels per frame; never gather inventories or mod state from OnGUI.
     // The time budget is checked between bots, all Unity access stays on the main thread.
-    public void Update(BotRoster roster, GameWorld world, Camera camera, float now, float distance, bool showOccluded = false)
+    public void Update(BotRoster roster, GameWorld world, Camera camera, float now, float distance, bool showOccluded = false, bool showDistance = false, Player? followed = null)
     {
-        if (roster.Bots.Count == 0) return;
+        if (roster.Labels.Count == 0) return;
         long start = Stopwatch.GetTimestamp();
         int refreshed = 0, checkedBots = 0;
-        while (checkedBots++ < roster.Bots.Count && refreshed < 2)
+        while (checkedBots++ < roster.Labels.Count && refreshed < 2)
         {
-            _cursor %= roster.Bots.Count;
-            var bot = roster.Bots[_cursor++];
+            _cursor %= roster.Labels.Count;
+            var bot = roster.Labels[_cursor++];
             if (now < bot.NextDetails) continue;
             bot.NextDetails = now + .5f;
             refreshed++;
             try
             {
                 var player = bot.Player;
-                bot.Visible = PmcNavigator.IsLivingBot(player) && InView(camera, player, distance, out _) &&
+                bot.Visible = PmcNavigator.IsLivingRemote(player) && InView(camera, player, distance, out _) &&
                     (showOccluded || ClearLine(camera, player, player.Position + Vector3.up * 1.8f) || ClearLine(camera, player, player.Position + Vector3.up));
-                if (bot.Visible)
+                string range = "";
+                if (bot.Visible && showDistance)
+                {
+                    Vector3 origin = followed != null ? followed.Position : camera.transform.position;
+                    range = $" | {(player.Position - origin).magnitude:0} m";
+                }
+                if (bot.Visible && bot.Human)
+                {
+                    var hp = Health(player);
+                    bot.Label = bot.LabelWithoutAction = $"{bot.Name} | Player{range}\nHealth: {hp.current:0}/{hp.maximum:0}";
+                }
+                else if (bot.Visible)
                 {
                     var sample = _read(player, world);
                     var detail = sample.Behavior;
@@ -87,7 +98,8 @@ internal sealed class BotLabels
                     string personality = detail.personality.Length > 0 ? " | " + detail.personality : "";
                     string value = bot.Value.HasValue ? bot.Value.Value.ToString("N0") + " RUB" : "unavailable";
                     string hp = health is { } h ? $"{h.current:0}/{h.maximum:0}" : "unavailable";
-                    bot.Label = $"{bot.Name} | {bot.Kind}{personality}\nHealth: {hp}\nLoot value (carried): {value}\n{(detail.ghost ? "Ghost | " : "")}{detail.action}";
+                    bot.LabelWithoutAction = $"{bot.Name} | {bot.Kind}{personality}{range}\nHealth: {hp}\nLoot value (carried): {value}";
+                    bot.Label = $"{bot.LabelWithoutAction}\n{(detail.ghost ? "Ghost | " : "")}{detail.action}";
                 }
             }
             catch (Exception e)
@@ -117,6 +129,9 @@ internal sealed class BotLabels
         return total;
     }
 
-    public void Hide(BotRoster roster) { foreach (var bot in roster.Bots) bot.Visible = false; }
+    internal static string Caption(SpectatorBot bot, bool followedOnly, Player? followed) =>
+        followedOnly && bot.Player != followed ? bot.LabelWithoutAction : bot.Label;
+
+    public void Hide(BotRoster roster) { foreach (var bot in roster.Labels) bot.Visible = false; }
     public void Clear() { _cursor = 0; _failed = _valueFailed = false; }
 }

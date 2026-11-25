@@ -13,31 +13,46 @@ internal sealed class SpectatorBot
     public string Label = "";
     public float NextDetails, NextValue;
     public double? Value;
-    public bool Visible;
+    public bool Visible, Human;
+    public string LabelWithoutAction = "";
 }
 
 internal sealed class BotRoster
 {
     public readonly List<SpectatorBot> Bots = new();
+    public readonly List<SpectatorBot> Labels = new();
+    private bool _includedHumans, _includedBots;
     private readonly Dictionary<string, SpectatorBot> _byId = new(StringComparer.Ordinal);
     private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
     private readonly List<string> _removed = new();
     private float _nextRefresh;
     internal Func<Player, (bool known, int? id)>? ReadHostSquad;
 
-    public void Refresh(GameWorld world, float now)
+    public void Refresh(GameWorld world, float now, bool includeHumans = false, bool includeBots = true)
     {
-        if (now < _nextRefresh) return;
+        if (now < _nextRefresh && _includedHumans == includeHumans && _includedBots == includeBots) return;
+        _includedHumans = includeHumans;
+        _includedBots = includeBots;
+        Labels.Clear();
         _nextRefresh = now + 1f;
         _seen.Clear();
         Bots.Clear();
         foreach (var player in world.AllAlivePlayersList)
         {
-            if (!PmcNavigator.IsLivingBot(player) || !_seen.Add(player.ProfileId)) continue;
+            if (!PmcNavigator.IsLivingRemote(player)) continue;
+            bool human = !PmcNavigator.IsBot(player);
+            if (!(human ? includeHumans : includeBots) || !_seen.Add(player.ProfileId)) continue;
             if (!_byId.TryGetValue(player.ProfileId, out var bot))
                 _byId.Add(player.ProfileId, bot = new SpectatorBot { Id = player.ProfileId });
             if (bot.Player != player) { bot.Visible = false; bot.NextDetails = bot.NextValue = 0; bot.Value = null; }
             bot.Player = player;
+            bot.Human = human;
+            Labels.Add(bot);
+            if (human)
+            {
+                bot.Name = player.Profile?.Nickname ?? player.ProfileId;
+                continue;
+            }
             string nickname = player.Profile?.Nickname ?? "";
             if (bot.RawName != nickname)
             {
@@ -83,6 +98,6 @@ internal sealed class BotRoster
 
     public void Clear()
     {
-        Bots.Clear(); _byId.Clear(); _seen.Clear(); _removed.Clear(); _nextRefresh = 0;
+        Labels.Clear(); Bots.Clear(); _byId.Clear(); _seen.Clear(); _removed.Clear(); _nextRefresh = 0;
     }
 }

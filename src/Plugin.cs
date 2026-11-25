@@ -30,6 +30,8 @@ public sealed partial class Plugin : BaseUnityPlugin
     private readonly BotDebugBridge _botDebug = new();
     private BotDebugView _botDebugView = null!;
     private readonly ExtractedPlayer _extractedPlayer = new();
+    private readonly ExtractedWeaponView _extractedWeapon = new();
+    private Player? FollowedActor => _navigator.FollowedTarget ?? (_camera.Script != null ? _fika?.Selection(_camera.Script, followingOnly: true) : null);
     private readonly PmcNavigator _navigator = new();
     private readonly SpectatorPhysics _physics = new();
     private readonly PhysicsDiagnostics _physicsDiagnostics = new();
@@ -52,7 +54,7 @@ public sealed partial class Plugin : BaseUnityPlugin
     private FikaSpectator? _fika;
     private FikaBotFeed? _fikaFeed;
     private bool _botToolsEnabled = true; // Solo permits bot spectating; Fika sets this on camera attachment.
-    private bool CanUseBotDebug => _botDebugReady && (_fika == null || _fika.IsHost());
+    private bool CanUseBotDebug => _botToolsEnabled && _botDebugReady && (_fika == null || _fika.IsHost());
     private bool CameraWatching => _cameraActive && (_fika != null || _session.Watching);
     private bool Extracted => _session.Extracted && _player != null;
     private ExitStatus SavedResult => _session.Outcome == WatchOutcome.Survived ? ExitStatus.Survived :
@@ -326,10 +328,10 @@ public sealed partial class Plugin : BaseUnityPlugin
         if (!ConfigurationIsOpen() && (menuPressed || (_fika == null && Input.GetKeyDown(KeyCode.Escape)))) _menuOpen = !_menuOpen;
         // Apply immediately, before the dependency's Update can process a menu click as camera movement.
         _camera.SetMenu(CameraMenu, _navigator.Following);
-        if (_botToolsEnabled)
+        if (_botToolsEnabled) _navigator.SetFilter(_settings.Targets.Value);
+        if (!_menuOpen && !ConfigurationIsOpen() && _settings.FollowKey.Value.IsDown()) ToggleFollow();
+        if (_botToolsEnabled || _navigator.Following)
         {
-            _navigator.SetFilter(_settings.Targets.Value);
-            if (!_menuOpen && !ConfigurationIsOpen() && _settings.FollowKey.Value.IsDown()) ToggleFollow();
             if (!CameraMenu && _navigator.Following && _settings.OrientationKey.Value.IsDown()) _navigator.ToggleOrientation();
             if (!CameraMenu) _navigator.Rotate(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"), _settings.OrbitSensitivity.Value);
         }
@@ -344,7 +346,6 @@ public sealed partial class Plugin : BaseUnityPlugin
                 else _camera.Zoom(wheel, _settings.ZoomSpeed.Value);
             }
         }
-        if (!_botToolsEnabled) return;
         // A manual BotDebug toggle remains active until the overlay choice changes.
         if (_settings.Overlay.Value != _lastOverlay)
         {
@@ -357,29 +358,32 @@ public sealed partial class Plugin : BaseUnityPlugin
             _overlay.ToggleBotInfo();
             SyncOverlay();
         }
-        if (_settings.ShowBotList.Value || _overlay.Mode == SpectatorOverlay.BotInfo)
-            _roster.Refresh(world, Time.unscaledTime);
-        if (_settings.ShowBotList.Value && _fika != null && !_fika.IsHost())
+        if ((_botToolsEnabled && _settings.ShowBotList.Value) || _overlay.Mode == SpectatorOverlay.BotInfo)
+            _roster.Refresh(world, Time.unscaledTime, _fika != null && _settings.ShowHumanLabels.Value && _overlay.Mode == SpectatorOverlay.BotInfo, _botToolsEnabled);
+        if (_botToolsEnabled && _settings.ShowBotList.Value && _fika != null && !_fika.IsHost())
             _fikaFeed?.PollRoster(_roster, world, Time.unscaledTime);
         if (_overlay.Mode == SpectatorOverlay.BotInfo && _camera.Camera != null)
-            _labels.Update(_roster, world, _camera.Camera, Time.unscaledTime, _settings.EffectiveLabelDistance, _settings.ShowOccludedBots.Value);
+            _labels.Update(_roster, world, _camera.Camera, Time.unscaledTime, _settings.EffectiveLabelDistance, _settings.ShowOccludedBots.Value, _settings.ShowDistance.Value, FollowedActor);
     }
 
     private void LateUpdate()
     {
         if (!CameraWatching) return;
+        _camera.SetSpectatorFov(_settings.UseSpectatorFov.Value, _settings.SpectatorFov.Value);
+        var extracted = _fikaExtracted ? _world?.MainPlayer : Extracted ? _player : null;
+        _extractedWeapon.Update(_settings.HideExtractedWeapon.Value ? extracted : null);
         _camera.MaintainEffects();
         FollowTransition transition = FollowTransition.None;
-        if (_botToolsEnabled && _world != null)
+        if ((_botToolsEnabled || _navigator.Following) && _world != null)
         {
             var previous = _navigator.Caption;
-            transition = _navigator.Follow(_world, _camera, _settings.VisitDistance.Value, _settings.AutoSwitchOnDeath.Value);
+            transition = _navigator.Follow(_world, _camera, _settings.VisitDistance.Value, _botToolsEnabled && _settings.AutoSwitchOnDeath.Value);
             if (transition != FollowTransition.None)
                 Logger.LogInfo($"Follow target lost: {transition}, previous={previous}, autoSwitch={_settings.AutoSwitchOnDeath.Value}, target={_navigator.Caption}.");
         }
         if (_footsteps.Active)
         {
-            try { _footsteps.Observe(_world!, _camera.Camera!, _navigator.FollowedBot, transition, _physicsInfo); }
+            try { _footsteps.Observe(_world!, _camera.Camera!, _navigator.FollowedTarget, transition, _physicsInfo); }
             catch (Exception e)
             {
                 _footsteps.Reset();
@@ -392,7 +396,10 @@ public sealed partial class Plugin : BaseUnityPlugin
     private void ToggleFollow()
     {
         if (_world == null) return;
-        _navigator.ToggleFollow(_world, _camera, _settings.VisitDistance.Value);
+        var selected = _settings.UseFikaSelection.Value && _camera.Script != null ? _fika?.Selection(_camera.Script) : null;
+        if (!_botToolsEnabled && !_navigator.Following &&
+            (!PmcNavigator.IsLivingRemote(selected) || PmcNavigator.IsBot(selected!) || !_world.AllAlivePlayersList.Contains(selected!))) return;
+        _navigator.ToggleFollow(_world, _camera, _settings.VisitDistance.Value, selected);
         Logger.LogInfo($"Camera follow: {_navigator.Following}, target={_navigator.Caption}");
     }
 
@@ -415,6 +422,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         // GameEnd derives profile playTime and its result callback from this clock. Do this only
         // once ending begins, so spectating never changes the live raid timer or bot timelines.
         _preparedEnd = true;
+        _extractedWeapon.Update(null);
         _botDebugView.Clear();
         StopBotDebug();
         Logger.LogInfo($"Spectator physics stopped: syncs={_physics.Count}, meanMs={(_physics.Count > 0 ? _physics.TotalMs / _physics.Count : 0):F3}, maxMs={_physics.MaxMs:F3}.");
@@ -435,6 +443,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         StopBotDebug();
         try { _extractedPlayer.Release(rollback); }
         catch (Exception e) { Logger.LogWarning($"Extracted player cleanup: {e.Message}"); }
+        _extractedWeapon.Update(null);
         _navigator.Reset();
         _roster.Clear();
         _labels?.Clear();
@@ -457,6 +466,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         _preparedEnd = false;
         _menuOpen = false;
         _cameraActive = false;
+        _fikaExtracted = false;
     }
 
     private static bool DeathPrefix(BaseLocalGame<EftGamePlayerOwner> __instance) =>
@@ -643,7 +653,7 @@ public sealed partial class Plugin : BaseUnityPlugin
             _panelTexture.SetPixel(0, 0, new Color(0.055f, 0.07f, 0.09f, 0.94f));
             _panelTexture.Apply();
         }
-        if (_botToolsEnabled && _overlay.Mode == SpectatorOverlay.BotInfo) DrawBotLabels(scale);
+        if (_overlay.Mode == SpectatorOverlay.BotInfo) DrawBotLabels(scale);
         if (_botToolsEnabled && _settings.ShowBotList.Value) DrawBotList(scale);
         else _listPanel.Reset();
         if (!_menuOpen && !_settings.ShowHelp.Value) return;
@@ -703,7 +713,7 @@ public sealed partial class Plugin : BaseUnityPlugin
                 if (GUILayout.Button("Next", _buttonStyle, GUILayout.Height(30 * scale))) VisitBot(1);
                 GUILayout.EndHorizontal();
                 GUILayout.Label(_navigator.Caption, _textStyle);
-                if (GUILayout.Button(_navigator.Following ? "Stop following" : "Follow selected bot", _buttonStyle, GUILayout.Height(30 * scale))) ToggleFollow();
+                if (GUILayout.Button(_navigator.Following ? "Stop following" : "Follow selected target", _buttonStyle, GUILayout.Height(30 * scale))) ToggleFollow();
                 if (_navigator.Following && GUILayout.Button(_navigator.LockOrientation ? "Orientation: bot view" : "Orientation: mouse orbit", _buttonStyle, GUILayout.Height(30 * scale))) _navigator.ToggleOrientation();
                 if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: toggle orientation / mouse orbit", _textStyle);
                 GUILayout.Label($"{_settings.FollowKey.Value}: follow / free camera. Drag the title to move this menu.", _textStyle);
@@ -711,7 +721,16 @@ public sealed partial class Plugin : BaseUnityPlugin
                 _settings.AutoSwitchOnDeath.Value = GUILayout.Toggle(_settings.AutoSwitchOnDeath.Value, "Auto-switch when followed bot dies", _toggleStyle);
             }
             else GUILayout.Label("Bot spectating is disabled on this Fika server.", _textStyle);
+            if (_fika != null)
+                _settings.UseFikaSelection.Value = GUILayout.Toggle(_settings.UseFikaSelection.Value, "Follow Fika selection with the follow key", _toggleStyle);
+            _settings.HideExtractedWeapon.Value = GUILayout.Toggle(_settings.HideExtractedWeapon.Value, "Hide my weapon after extraction", _toggleStyle);
             GUILayout.Label(ZoomHint, _textStyle);
+            _settings.UseSpectatorFov.Value = GUILayout.Toggle(_settings.UseSpectatorFov.Value, "Override spectator FOV", _toggleStyle);
+            if (_settings.UseSpectatorFov.Value)
+            {
+                GUILayout.Label($"Field of view: {_settings.SpectatorFov.Value:0} degrees", _textStyle);
+                _settings.SpectatorFov.Value = Mathf.Round(GUILayout.HorizontalSlider(_settings.SpectatorFov.Value, 30f, 110f));
+            }
             GUILayout.Space(10 * scale);
             GUILayout.Label("Interface size", _titleStyle);
             _settings.AutomaticScale.Value = GUILayout.Toggle(_settings.AutomaticScale.Value, "Adapt to screen resolution", _toggleStyle);
@@ -722,29 +741,30 @@ public sealed partial class Plugin : BaseUnityPlugin
             GUILayout.EndHorizontal();
             if (GUILayout.Button("Reset interface size", _buttonStyle, GUILayout.Height(30 * scale))) { _settings.AutomaticScale.Value = true; _settings.InterfaceScale.Value = 1; }
             GUILayout.Space(10 * scale);
-            if (_botToolsEnabled)
+            GUILayout.Label("Information overlay", _titleStyle);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.Off ? "[Off]" : "Off", _buttonStyle)) ChooseOverlay(SpectatorOverlay.Off);
+            if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotInfo ? "[Bot info]" : "Bot info", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotInfo);
+            bool oldEnabled = GUI.enabled;
+            GUI.enabled = oldEnabled && CanUseBotDebug;
+            if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotDebug ? "[BotDebug]" : "BotDebug", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotDebug);
+            GUI.enabled = oldEnabled;
+            GUILayout.EndHorizontal();
+            if (_settings.BotInfoKey.Value.MainKey != KeyCode.None)
+                GUILayout.Label($"{_settings.BotInfoKey.Value}: show / hide Bot info", _textStyle);
+            if (_botToolsEnabled && !CanUseBotDebug) GUILayout.Label(_fika != null && !_fika.IsHost() ? "Use Bot info for replicated bots." : _botDebugStatus, _textStyle);
+            if (_overlay.Mode == SpectatorOverlay.BotInfo)
             {
-                GUILayout.Label("Bot overlay", _titleStyle);
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.Off ? "[Off]" : "Off", _buttonStyle)) ChooseOverlay(SpectatorOverlay.Off);
-                if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotInfo ? "[Bot info]" : "Bot info", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotInfo);
-                bool oldEnabled = GUI.enabled;
-                GUI.enabled = oldEnabled && CanUseBotDebug;
-                if (GUILayout.Button(_overlay.Mode == SpectatorOverlay.BotDebug ? "[BotDebug]" : "BotDebug", _buttonStyle)) ChooseOverlay(SpectatorOverlay.BotDebug);
-                GUI.enabled = oldEnabled;
-                GUILayout.EndHorizontal();
-                if (_settings.BotInfoKey.Value.MainKey != KeyCode.None)
-                    GUILayout.Label($"{_settings.BotInfoKey.Value}: show / hide Bot info", _textStyle);
-                if (!CanUseBotDebug) GUILayout.Label(_fika != null && !_fika.IsHost() ? "Use Bot info for replicated bots." : _botDebugStatus, _textStyle);
-                if (_overlay.Mode == SpectatorOverlay.BotInfo)
-                {
-                    GUILayout.Label("Bot info: name, health, personality, carried value and current action.", _textStyle);
-                    _settings.ShowOccludedBots.Value = GUILayout.Toggle(_settings.ShowOccludedBots.Value, "Show bots through scenery", _toggleStyle);
-                    _settings.LimitLabelDistance.Value = GUILayout.Toggle(_settings.LimitLabelDistance.Value, "Limit label distance (F12)", _toggleStyle);
-                    GUILayout.Label("White: Scavs | Squad colors: PMCs | Red: bosses | Orange: guards | Violet: other factions", _textStyle);
-                }
-                _settings.ShowBotList.Value = GUILayout.Toggle(_settings.ShowBotList.Value, "Show bot list (click to visit)", _toggleStyle);
+                if (_fika != null)
+                    _settings.ShowHumanLabels.Value = GUILayout.Toggle(_settings.ShowHumanLabels.Value, "Show player names and health", _toggleStyle);
+                _settings.ShowDistance.Value = GUILayout.Toggle(_settings.ShowDistance.Value, "Show distance on labels", _toggleStyle);
+                if (_botToolsEnabled)
+                    _settings.ActionsOnlyWhenFollowing.Value = GUILayout.Toggle(_settings.ActionsOnlyWhenFollowing.Value, "Show actions only for the followed bot", _toggleStyle);
+                _settings.ShowOccludedBots.Value = GUILayout.Toggle(_settings.ShowOccludedBots.Value, "Show labels through scenery", _toggleStyle);
+                _settings.LimitLabelDistance.Value = GUILayout.Toggle(_settings.LimitLabelDistance.Value, "Limit label distance (F12)", _toggleStyle);
+                if (_botToolsEnabled) GUILayout.Label("White: Scavs | Squad colors: PMCs | Red: bosses | Orange: guards | Violet: other factions", _textStyle);
             }
+            if (_botToolsEnabled) _settings.ShowBotList.Value = GUILayout.Toggle(_settings.ShowBotList.Value, "Show bot list (click to visit)", _toggleStyle);
             _settings.ShowHelp.Value = GUILayout.Toggle(_settings.ShowHelp.Value, "Show help while moving the camera", _toggleStyle);
             GUILayout.Label("More settings: F12 > HORIZON. Movement: Freecam controls.", _textStyle);
             GUILayout.EndScrollView();
@@ -757,11 +777,11 @@ public sealed partial class Plugin : BaseUnityPlugin
             var infoKey = _settings.BotInfoKey.Value;
             string menu = _fika == null ? "Esc: menu / Leave raid" :
                 (_settings.MenuKey.Value.MainKey == KeyCode.Escape ? "F6" : _settings.MenuKey.Value.ToString()) + ": HORIZON menu";
-            GUILayout.Label(!_botToolsEnabled || infoKey.MainKey == KeyCode.None ? menu : $"{menu} | {infoKey}: Bot info", _textStyle);
+            GUILayout.Label(infoKey.MainKey == KeyCode.None ? menu : $"{menu} | {infoKey}: Bot info", _textStyle);
             if (_botToolsEnabled)
             {
                 if (_settings.CycleBots.Value) GUILayout.Label(_navigator.Caption, _textStyle);
-                GUILayout.Label($"{_settings.FollowKey.Value}: {(_navigator.Following ? "stop following" : "follow bot")} | Hold Left Alt to drag", _textStyle);
+                GUILayout.Label($"{_settings.FollowKey.Value}: {(_navigator.Following ? "stop following" : "follow target")} | Hold Left Alt to drag", _textStyle);
                 if (_navigator.Following) GUILayout.Label($"{_settings.OrientationKey.Value}: {(_navigator.LockOrientation ? "bot view" : "mouse orbit")}", _textStyle);
             }
             else GUILayout.Label("Hold Left Alt to drag", _textStyle);

@@ -11,6 +11,8 @@ namespace Horizon;
 
 public sealed partial class Plugin
 {
+    private bool _fikaExtracted;
+
     private (string, string, bool) ReadAuthorityLabel(Player bot, GameWorld world)
     {
         BindBotInformation();
@@ -74,13 +76,15 @@ public sealed partial class Plugin
                     _botDebugView.Attach(world, world.MainPlayer, camera);
                     _botDebug.BeginSession();
                 }
-                _lastOverlay = _settings.Overlay.Value;
-                ApplyOverlay(_lastOverlay);
             }
+            _lastOverlay = _settings.Overlay.Value;
+            ApplyOverlay(_lastOverlay);
         }
+        _fikaExtracted = _fika.Extracted(script);
+        bool wasFollowing = _navigator.Following;
         UpdateCamera(world);
         // Fika handles its own Home input toggle even while HORIZON is following a bot.
-        return Input.GetKeyDown(KeyCode.Home) || (!CameraMenu && !_navigator.Following);
+        return Input.GetKeyDown(KeyCode.Home) || (!CameraMenu && !wasFollowing && !_navigator.Following);
     }
 
     private static IEnumerable<CodeInstruction> FikaWheelTranspiler(IEnumerable<CodeInstruction> instructions) =>

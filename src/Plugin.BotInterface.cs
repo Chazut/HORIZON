@@ -94,17 +94,18 @@ public sealed partial class Plugin
         var color = GUI.color;
         GUI.depth = -90;
         _labelLayout.Labels.Clear();
-        foreach (var bot in _roster.Bots)
+        var followed = _settings.ActionsOnlyWhenFollowing.Value ? FollowedActor : null;
+        foreach (var bot in _roster.Labels)
         {
-            if (!bot.Visible || !PmcNavigator.IsLivingBot(bot.Player) ||
+            if (!bot.Visible || (bot.Human ? !_settings.ShowHumanLabels.Value : !_botToolsEnabled) || !PmcNavigator.IsLivingRemote(bot.Player) ||
                 !BotLabels.InView(_camera.Camera, bot.Player, _settings.EffectiveLabelDistance, out var point)) continue;
-            _labelContent.text = bot.Label;
+            _labelContent.text = BotLabels.Caption(bot, _settings.ActionsOnlyWhenFollowing.Value, followed);
             float width = Mathf.Min(310 * scale, screen.x - 16);
             width = Mathf.Min(width, Mathf.Ceil(_labelStyle.CalcSize(_labelContent).x) + 20 * scale);
             float height = _labelStyle.CalcHeight(_labelContent, width - 20 * scale) + 12 * scale;
             var head = new Vector2(point.x * screen.x, (1 - point.y) * screen.y);
-            var tint = BotColor(bot);
-            var rect = _labelLayout.Add(head, new Vector2(width, height), screen, 12 * scale, bot.Label, tint);
+            var tint = bot.Human ? new Color(.55f, 1f, .8f) : BotColor(bot);
+            var rect = _labelLayout.Add(head, new Vector2(width, height), screen, 12 * scale, _labelContent.text, tint);
             DrawLabelGuide(head, rect, tint, scale, _labelDashes);
         }
         // Draw all captions over the connectors so a later line cannot cover earlier text.

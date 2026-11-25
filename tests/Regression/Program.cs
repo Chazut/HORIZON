@@ -241,6 +241,7 @@ if (args.Length > 1 || File.Exists(fikaPath))
     var settings = fika.MainModule.GetType("Fika.Core.FikaPlugin").Properties.Single(p => p.Name == "Settings").PropertyType.Resolve();
     Check(BoolGetter(settings, "AllowSpectateBots") && BoolGetter(settings, "AllowSpectateFreeCam"), "Fika server spectator settings");
     Check(camera.Methods.Any(m => m.Name == "DetachCamera" && m.IsPublic && !m.IsStatic && m.Parameters.Count == 0), "Fika camera detach API");
+    Check(camera.Fields.Any(f => f.Name == "_currentPlayer" && f.FieldType.FullName == "Fika.Core.Main.Players.FikaPlayer"), "Selected Fika spectator actor field");
     Check(new[] { "_isFollowing", "_disableInput" }.All(n => camera.Fields.Any(f => f.Name == n && f.FieldType.FullName == "System.Boolean")) &&
         new[] { "_yaw", "_pitch" }.All(n => camera.Fields.Any(f => f.Name == n && f.FieldType.FullName == "System.Single")), "Fika native look fields");
     Check(camera.Methods.Single(m => m.Name == "Update").Body.Instructions.Any(i => i.Operand is MethodReference m &&
