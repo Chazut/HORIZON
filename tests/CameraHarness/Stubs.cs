@@ -26,12 +26,27 @@ namespace UnityEngine
         public Quaternion rotation;
         public void SetPositionAndRotation(Vector3 p, Quaternion q) { position = p; rotation = q; }
         public void SetParent(Transform? p, bool world) => parent = p;
+        private int _sibling;
+        public int GetSiblingIndex() => _sibling;
+        public void SetSiblingIndex(int index) => _sibling = index;
+        public T? GetComponentInParent<T>(bool inactive) where T : Component =>
+            gameObject.GetComponent(typeof(T)) as T ?? parent?.GetComponentInParent<T>(inactive);
         public bool IsChildOf(Transform other) => this == other || parent?.IsChildOf(other) == true;
     }
     public class GameObject
     {
         public Transform transform;
         public GameObject() { transform = new Transform { gameObject = this }; }
+        public GameObject(string name, params Type[] components) : this()
+        {
+            foreach (var type in components) {
+                var component = (Component)Activator.CreateInstance(type)!;
+                component.gameObject = this;
+                Components[type] = component;
+            }
+        }
+        public T GetComponent<T>() where T : Component => (T)Components[typeof(T)];
+        public int layer;
         public bool activeSelf = true;
         public bool activeInHierarchy => activeSelf && (transform.parent?.gameObject.activeInHierarchy ?? true);
         public void SetActive(bool value) => activeSelf = value;
@@ -49,7 +64,10 @@ namespace UnityEngine
     }
     public class Behaviour : Component { public bool enabled = true; }
     public class MonoBehaviour : Behaviour { }
+    public enum RenderMode { ScreenSpaceOverlay }
+    public class Canvas : Behaviour { public RenderMode renderMode; public float scaleFactor = 1; public int sortingOrder; }
     public static class Time { public static float unscaledTime; }
+    public struct Vector2(float x, float y) { public float x = x, y = y; }
     public class Camera : MonoBehaviour
     {
         public float fieldOfView = 60f;
@@ -96,7 +114,7 @@ namespace EFT
         public UnityEngine.Vector3 position => Original.position;
         public UnityEngine.Quaternion rotation => Original.rotation;
     }
-    public interface IPlayer { string ProfileId { get; } }
+    public interface IPlayer { string ProfileId { get; } UnityEngine.Vector3 Position { get; } UnityEngine.Vector2 Rotation { get; } }
     public class AIData { public BotOwner? BotOwner; }
     public class PlayerBones { public BifacialTransform? Head; }
     public class BotGroup { public int Id; }
@@ -121,6 +139,7 @@ namespace EFT
         public PlayerBones? PlayerBones;
         public EFT.InventoryLogic.Inventory? Inventory = new();
         public UnityEngine.Vector3 Position => gameObject.transform.position;
+        public UnityEngine.Vector2 Rotation { get; set; }
         public UnityEngine.Vector3 LookDirection = new(0, 0, 1);
         public BifacialTransform Transform => new(gameObject.transform);
     }

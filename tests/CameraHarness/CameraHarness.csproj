@@ -8,6 +8,8 @@
     <Compile Include="../../src/BotDebugBridge.cs" Link="Production/BotDebugBridge.cs" />
     <Compile Include="../../src/BotDebugView.cs" Link="Production/BotDebugView.cs" />
     <Compile Include="../../src/BotDebugHooks.cs" Link="Production/BotDebugHooks.cs" />
+    <Compile Include="../../src/DynamicMapsHooks.cs" Link="Production/DynamicMapsHooks.cs" />
+    <Compile Include="../../src/SpectatorMapHud.cs" Link="Production/SpectatorMapHud.cs" />
     <Reference Include="0Harmony" HintPath="C:/Games/SPT-4.1/BepInEx/core/0Harmony.dll" />
     <Compile Include="../../src/ExtractedPlayer.cs" Link="Production/ExtractedPlayer.cs" />
     <Compile Include="../../src/PmcCycle.cs" Link="Production/PmcCycle.cs" />

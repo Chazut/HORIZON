@@ -62,6 +62,8 @@ For a live check, connect two graphical players to a hosted raid. Repeat with a 
 
 ## Spectator labels, FOV and extraction visuals
 
+- With DynamicMaps installed, leave its minimap on, then die or extract. Fly to another floor, attach to a moving PMC, orbit it and detach. Check the local arrow, heading, floor and center hotkey in each mode. The corpse marker should stay at the death site. Repeat as a Fika guest while the battle HUD is hidden, toggle **Track spectator on DynamicMaps** off and on, then check the next raid while alive.
+
 - Follow a teammate in Fika, press F, then repeat after selecting another human and a bot. Click a bot in HORIZON with a different native target selected. Each visit should use the latest selection. Repeat with bot spectating disabled. Only human labels and human follow should be available.
 - Compare label distances from freecam, native Fika follow and HORIZON orbit. Toggle player labels and follow-only actions separately. Filtering actions should leave health and distance visible on other labels.
 - Adjust the FOV slider, disable it mid-raid and return to gameplay. Check that the original FOV returns in each provider.

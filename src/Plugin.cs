@@ -18,6 +18,7 @@ namespace Horizon;
 [BepInDependency("com.fika.core", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(KillcamBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(BotDebugBridge.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(DynamicMapsHooks.PluginId, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInIncompatibility("com.chazut.raidspectator")]
 public sealed partial class Plugin : BaseUnityPlugin
 {
@@ -53,6 +54,7 @@ public sealed partial class Plugin : BaseUnityPlugin
     private BotLabels _labels = null!;
     private FikaSpectator? _fika;
     private FikaBotFeed? _fikaFeed;
+    private SpectatorMapHud? _mapHud;
     private bool _botToolsEnabled = true; // Solo permits bot spectating; Fika sets this on camera attachment.
     private bool CanUseBotDebug => _botToolsEnabled && _botDebugReady && (_fika == null || _fika.IsHost());
     private bool CameraWatching => _cameraActive && (_fika != null || _session.Watching);
@@ -128,6 +130,22 @@ public sealed partial class Plugin : BaseUnityPlugin
                     Logger.LogWarning($"BotDebug integration unavailable; spectating remains enabled: {e.Message}");
                 }
             }
+            if (Chainloader.PluginInfos.TryGetValue(DynamicMapsHooks.PluginId, out var maps))
+            {
+                try
+                {
+                    var assembly = maps.Instance.GetType().Assembly;
+                    var peekType = assembly.GetType("DynamicMaps.UI.Components.MapPeekComponent", true)!;
+                    DynamicMapsHooks.Install(assembly, MapObserver);
+                    _mapHud = new SpectatorMapHud(() => {
+                        var screen = Singleton<EFT.UI.CommonUI>.Instance?.EftBattleUIScreen;
+                        return screen != null && !screen.gameObject.activeInHierarchy
+                            ? screen.GetComponentInChildren(peekType, true)?.transform : null;
+                    });
+                    Logger.LogInfo("DynamicMaps spectator tracking ready.");
+                }
+                catch (Exception e) { Logger.LogWarning("DynamicMaps spectator tracking unavailable: " + e); }
+            }
             // Optional: allow F12 configuration without fighting over its mouse cursor.
             if (Chainloader.PluginInfos.TryGetValue("com.bepis.bepinex.configurationmanager", out var manager))
             {
@@ -170,10 +188,21 @@ public sealed partial class Plugin : BaseUnityPlugin
         {
             _harmony.UnpatchSelf();
             BotDebugHooks.Remove();
+            if (DynamicMapsHooks.Installed) DynamicMapsHooks.Remove();
             _instance = null;
             Logger.LogError($"Compatibility check failed; normal raid endings remain enabled: {e}");
             enabled = false;
         }
+    }
+
+    private (Camera?, Player?) MapObserver(IPlayer player)
+    {
+        if (!CameraWatching || _quitting || !_settings.DynamicMapsTracking.Value || _world == null ||
+            !ReferenceEquals(player, _world.MainPlayer) || !isActiveAndEnabled || !ReferenceEquals(_world, Singleton<GameWorld>.Instance))
+            return default;
+        var camera = _camera.Camera;
+        if (camera == null || !camera.isActiveAndEnabled) return default;
+        return (camera, DynamicMapsHooks.EligibleTarget(_world, FollowedActor, _botToolsEnabled));
     }
 
     private void Patch(Type type, string targetName, string prefixName)
@@ -369,6 +398,16 @@ public sealed partial class Plugin : BaseUnityPlugin
     private void LateUpdate()
     {
         if (!CameraWatching) return;
+        if (_mapHud != null)
+        {
+            try { _mapHud.Update(_settings.DynamicMapsTracking.Value, Time.unscaledTime); }
+            catch (Exception e)
+            {
+                Logger.LogWarning("Could not display DynamicMaps over the hidden HUD: " + e.Message);
+                _mapHud.Restore();
+                _mapHud = null;
+            }
+        }
         _camera.SetSpectatorFov(_settings.UseSpectatorFov.Value, _settings.SpectatorFov.Value);
         var extracted = _fikaExtracted ? _world?.MainPlayer : Extracted ? _player : null;
         _extractedWeapon.Update(_settings.HideExtractedWeapon.Value ? extracted : null);
@@ -422,6 +461,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         // GameEnd derives profile playTime and its result callback from this clock. Do this only
         // once ending begins, so spectating never changes the live raid timer or bot timelines.
         _preparedEnd = true;
+        _mapHud?.Restore();
         _extractedWeapon.Update(null);
         _botDebugView.Clear();
         StopBotDebug();
@@ -438,6 +478,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 
     private void Reset(bool rollback = false)
     {
+        _mapHud?.Restore();
         if (_dragControl != 0 && GUIUtility.hotControl == _dragControl) GUIUtility.hotControl = 0;
         _dragControl = 0; _dragPosition = null;
         StopBotDebug();
@@ -724,6 +765,8 @@ public sealed partial class Plugin : BaseUnityPlugin
             if (_fika != null)
                 _settings.UseFikaSelection.Value = GUILayout.Toggle(_settings.UseFikaSelection.Value, "Follow Fika selection with the follow key", _toggleStyle);
             _settings.HideExtractedWeapon.Value = GUILayout.Toggle(_settings.HideExtractedWeapon.Value, "Hide my weapon after extraction", _toggleStyle);
+            if (DynamicMapsHooks.Installed)
+                _settings.DynamicMapsTracking.Value = GUILayout.Toggle(_settings.DynamicMapsTracking.Value, "Track spectator on DynamicMaps", _toggleStyle);
             GUILayout.Label(ZoomHint, _textStyle);
             _settings.UseSpectatorFov.Value = GUILayout.Toggle(_settings.UseSpectatorFov.Value, "Override spectator FOV", _toggleStyle);
             if (_settings.UseSpectatorFov.Value)
@@ -806,6 +849,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         Reset();
         _harmony.UnpatchSelf();
         BotDebugHooks.Remove();
+        if (DynamicMapsHooks.Installed) DynamicMapsHooks.Remove();
         PmcNavigator.IsObservedBot = null;
         if (_panelTexture != null) Destroy(_panelTexture);
         if (_labelDashes != null) Destroy(_labelDashes);

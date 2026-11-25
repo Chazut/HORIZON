@@ -432,6 +432,7 @@ catch (InvalidOperationException) { count++; }
 
 BotInfoTests.Run(Check);
 FikaCameraTests.Run(Check);
+DynamicMapsTests.Run(Check);
 Console.WriteLine($"PASS: {count} production camera/overlay checks with Unity doubles (not a rendered raid).");
 
 public static class FakeKillcamPlugin { public static FakeKillcamController? ReplayCtrl; }

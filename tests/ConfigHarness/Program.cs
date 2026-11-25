@@ -25,6 +25,9 @@ try
 {
     string path = Path.Combine(dir, "fresh.cfg");
     var fresh = new SpectatorSettings(new ConfigFile(path, false));
+    Check(fresh.DynamicMapsTracking.Value, "DynamicMaps spectator tracking defaults to on");
+    fresh.DynamicMapsTracking.Value = false;
+    Check(!new SpectatorSettings(new ConfigFile(path, false)).DynamicMapsTracking.Value, "DynamicMaps opt-out survives a restart");
     Check(!fresh.UseSpectatorFov.Value && fresh.ShowHumanLabels.Value && fresh.ShowDistance.Value &&
         !fresh.ActionsOnlyWhenFollowing.Value && fresh.UseFikaSelection.Value && fresh.HideExtractedWeapon.Value, "Spectator roadmap defaults, including actions for everyone");
     Check(fresh.LabelOptions.Length == 10 && fresh.LabelOptions.Select(x => x.Field).Distinct().Count() == 10

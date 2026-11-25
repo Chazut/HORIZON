@@ -41,6 +41,8 @@ Updating from a build installed in `BepInEx/plugins/RaidSpectator`? Remove that 
 
 ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectators** to observe awake bots.
 
+If you use DynamicMaps, your map arrow follows the free camera. Attach to a bot or teammate and the arrow shows their position, floor and heading, even while you orbit them. Detach to track the camera again. You can turn **Track spectator on DynamicMaps** off in the spectator menu or F12.
+
 ## Controls
 
 **Fika:** Enable `allowSpectateFreeCam` on the server to use the camera, zoom and **F6** menu after death or extraction. Enable `allowSpectateBots` as well to cycle through bots, follow them and toggle BotInfo with **F3**. The raid host sends the spectator each requested bot's squad ID, current action, SAIN personality, ORBIT Ghost state, health and estimated carried value. AI mod integrations use the mods installed on the raid host. The graphical host can keep playing while a teammate spectates. Without a compatible host, the overlay shows "Host action unavailable". The separate BotDebug overlay runs on the graphical host only. Use Fika's extract shortcut (**F8** by default) to leave.

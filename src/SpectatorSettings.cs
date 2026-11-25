@@ -31,6 +31,7 @@ internal sealed class SpectatorSettings
     public ConfigEntry<bool> ActionsOnlyWhenFollowing { get; }
     public ConfigEntry<bool> UseFikaSelection { get; }
     public ConfigEntry<bool> HideExtractedWeapon { get; }
+    public ConfigEntry<bool> DynamicMapsTracking { get; }
     public ConfigEntry<float> VisitDistance { get; }
     public ConfigEntry<bool> ShowHelp { get; }
     public ConfigEntry<SpectatorOverlay> Overlay { get; }
@@ -85,6 +86,7 @@ internal sealed class SpectatorSettings
             SpectatorFov = config.Bind("Camera", "Spectator FOV", 60f, new ConfigDescription("Vertical field of view in degrees while the override is on.", new AcceptableValueRange<float>(30f, 110f)));
             UseFikaSelection = config.Bind("Camera", "Follow Fika selection", true, "Press the follow key to orbit the living player or bot selected in Fika's camera.");
             HideExtractedWeapon = config.Bind("Interface", "Hide extracted weapon", true, "Hide your held item model locally while watching after extraction.");
+            DynamicMapsTracking = config.Bind("Interface", "Track spectator on DynamicMaps", true, "Use the free camera or the actor you are following as your position and heading on DynamicMaps while spectating.");
             ShowHumanLabels = config.Bind("Interface", "Show player labels", true, "Show Bot info labels for other living human players using your selected fields.");
             ShowDistance = config.Bind("Interface", "Show distance on labels", true, "Distance in metres from the free camera, or from the actor you are following.");
             (BotLabelFields, ConfigEntry<bool>) Label(BotLabelFields field, string name, string help) =>

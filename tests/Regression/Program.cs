@@ -171,6 +171,29 @@ foreach (string path in new[] { "BepInEx/core", "EscapeFromTarkov_Data/Managed",
 var parameters = new ReaderParameters { AssemblyResolver = resolver };
 using var plugin = AssemblyDefinition.ReadAssembly(Path.Combine(project, "bin/Release/netstandard2.1/HORIZON.dll"), parameters);
 Check(plugin.Name.Name == "HORIZON", "Plugin assembly uses the HORIZON name");
+Check(!plugin.MainModule.AssemblyReferences.Any(a => a.Name == "DynamicMaps"), "Solo discovery has no assembly dependency on DynamicMaps");
+string dynamicMapsPath = Path.Combine(root, "BepInEx/plugins/mpstark-dynamicmaps/DynamicMaps.dll");
+if (File.Exists(dynamicMapsPath))
+{
+    using var maps = AssemblyDefinition.ReadAssembly(dynamicMapsPath);
+    foreach (var (type, methodName) in new[] {
+        ("UI.ModdedMapScreen", "OnShowInRaid"), ("UI.ModdedMapScreen", "CenterOnPlayer"),
+        ("UI.ModdedMapScreen", "OnZoomMain"), ("UI.ModdedMapScreen", "OnZoomMini"),
+        ("UI.Components.PlayerMapMarker", "Create"), ("UI.Components.PlayerMapMarker", "LateUpdate"),
+        ("UI.Controls.PlayerPositionText", "Update"), ("PlayerDotSpawner", "Update") })
+    {
+        var body = maps.MainModule.GetType("DynamicMaps." + type).Methods.Single(m => m.Name == methodName).Body.Instructions;
+        var reads = body.Select(i => i.Operand).OfType<MethodReference>().Where(m => m.DeclaringType.FullName == "EFT.IPlayer").ToList();
+        Check(reads.Count(m => m.Name == "get_Position") == 1 && reads.Count(m => m.Name == "get_Rotation") == (methodName == "LateUpdate" ? 1 : 0),
+            "Installed DynamicMaps display reads in " + methodName);
+        if (methodName == "LateUpdate")
+        {
+            var earlyReturn = body.First(i => i.OpCode.Code == Code.Ret);
+            Check((earlyReturn.Previous.OpCode.Code is Code.Brfalse or Code.Brfalse_S) && ReferenceEquals(earlyReturn.Previous.Operand, earlyReturn.Next),
+                "Missing body transform can resume at the native marker update");
+        }
+    }
+}
 using var game = AssemblyDefinition.ReadAssembly(Path.Combine(root, "EscapeFromTarkov_Data/Managed/Assembly-CSharp.dll"), parameters);
 using var freecam = AssemblyDefinition.ReadAssembly(Path.Combine(root, "BepInEx/plugins/Terkoiz.Freecam/Terkoiz.Freecam.dll"), parameters);
 var entry = plugin.MainModule.GetType("Horizon.Plugin");
