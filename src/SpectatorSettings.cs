@@ -18,6 +18,8 @@ internal sealed class SpectatorSettings
     public ConfigEntry<bool> ShowHumanLabels { get; }
     public ConfigEntry<bool> ShowDistance { get; }
     public (BotLabelFields Field, ConfigEntry<bool> Setting)[] LabelOptions { get; }
+    public ConfigEntry<int>[] LabelLines { get; }
+    public ulong LabelRows { get; private set; } = BotInfoRows.Defaults;
     public BotLabelFields VisibleLabelFields
     {
         get
@@ -97,6 +99,7 @@ internal sealed class SpectatorSettings
                 Label(BotLabelFields.Type, "Character type", "Show the type, such as PMC, Scav, Boss or Player."),
                 Label(BotLabelFields.RoleDetail, "Faction or role detail", "Show the bot's faction or named role when available, such as BEAR or Killa."),
                 Label(BotLabelFields.Personality, "SAIN personality", "Show the personality when SAIN provides it."),
+                Label(BotLabelFields.Difficulty, "Bot difficulty", "Show the difficulty assigned to the bot at spawn."),
                 (BotLabelFields.Distance, ShowDistance), // Keep the existing Interface key and saved preference.
                 Label(BotLabelFields.Health, "Health", "Show current and maximum health."),
                 Label(BotLabelFields.CarriedValue, "Carried loot value", "Show the estimated value of the bot's carried equipment in roubles."),
@@ -104,6 +107,17 @@ internal sealed class SpectatorSettings
                 Label(BotLabelFields.Action, "Current action", "Show the active AI action. COMET squad tactics have their own switch."),
                 Label(BotLabelFields.SquadTactic, "COMET squad tactic", "Show the active COMET squad tactic and role when reported in the action line.")
             };
+            LabelLines = new ConfigEntry<int>[BotInfoRows.Count];
+            foreach (var (field, option) in LabelOptions)
+            {
+                int index = BotInfoRows.Index(field);
+                var line = config.Bind("Bot info lines", option.Definition.Key, BotInfoRows.Get(BotInfoRows.Defaults, index),
+                    new ConfigDescription("Fields on the same line are grouped together. Empty lines are skipped.",
+                        new AcceptableValueRange<int>(1, BotInfoRows.Count)));
+                LabelLines[index] = line;
+                LabelRows = BotInfoRows.Set(LabelRows, index, line.Value);
+                line.SettingChanged += (_, __) => LabelRows = BotInfoRows.Set(LabelRows, index, line.Value);
+            }
             ActionsOnlyWhenFollowing = config.Bind("Interface", "Show actions only for followed bot", false, "Hide action lines for other bots. In free camera this hides all bot actions. Other label details stay visible.");
             VisitDistance = config.Bind("General", "Camera visit distance", 2.5f, new ConfigDescription("Distance in metres from a selected bot when visiting or following. Nearby walls shorten this distance.", new AcceptableValueRange<float>(1f, 10f)));
             ShowHelp = config.Bind("General", "Show spectator help", true, "Show the small HORIZON panel while moving the camera. The spectator menu remains accessible when hidden.");

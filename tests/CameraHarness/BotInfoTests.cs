@@ -282,7 +282,7 @@ internal static class BotInfoTests
         var expected = new (BotLabelFields field, string text)[]
         {
             (BotLabelFields.Name, "Alpha"), (BotLabelFields.Type, "PMC"), (BotLabelFields.RoleDetail, "USEC"),
-            (BotLabelFields.Distance, "20 m"), (BotLabelFields.Personality, "Rat"),
+            (BotLabelFields.Distance, "20 m"), (BotLabelFields.Personality, "Rat"), (BotLabelFields.Difficulty, "Difficulty: hard"),
             (BotLabelFields.Health, "Health: 225/440"), (BotLabelFields.CarriedValue, $"Loot value (carried): {1234d:N0} RUB"),
             (BotLabelFields.Ghost, "Ghost"), (BotLabelFields.Action, action)
         };
@@ -291,8 +291,13 @@ internal static class BotInfoTests
             check(Caption(field) == text, $"Only {field} selected gives a single clean caption");
             check(!Caption(BotLabelFields.All & ~field).Contains(text), $"Hiding {field} removes it independently");
         }
-        var defaults = $"Alpha | PMC / USEC | Rat | 20 m\nHealth: 225/440\nLoot value (carried): {1234d:N0} RUB\nGhost | COMET: Reload";
+        var defaults = $"Alpha | PMC / USEC | Rat | 20 m | Difficulty: hard\nHealth: 225/440\nLoot value (carried): {1234d:N0} RUB\nGhost | COMET: Reload";
         check(Caption(BotLabelFields.All) == defaults, "All fields preserve the original label order, separators and units");
+        var custom = BotInfoRows.Set(BotInfoRows.Defaults, BotInfoRows.Index(BotLabelFields.Name), 8);
+        custom = BotInfoRows.Set(custom, BotInfoRows.Index(BotLabelFields.Action), 1);
+        labels.Update(roster, world, camera, tick, 0, true, BotLabelFields.Name | BotLabelFields.Action, null, custom);
+        check(bot.Label == "COMET: Reload\nAlpha" && bot.LabelWithoutAction == "Alpha",
+            "Changing lines at the same timestamp reorders actions, skips empty lines and preserves follow-only labels");
         int before = hostReads;
         check(Caption(BotLabelFields.None) == "" && !bot.Visible && hostReads == before, "All fields off hides the whole label without sampling");
         check(Caption(BotLabelFields.Name) == "Alpha" && hostReads == before, "Identity-only labels do not request host samples");

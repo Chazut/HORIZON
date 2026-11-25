@@ -15,6 +15,9 @@ internal sealed class BotLabels
     private readonly Action<string> _warning;
     private readonly StringBuilder _text = new(160);
     private BotLabelFields _fields;
+    private ulong _rows;
+    private readonly int[] _displayOrder = new int[BotInfoRows.Count];
+    private readonly string?[] _values = new string?[BotInfoRows.Count];
     private int _cursor;
     private bool _failed;
     private bool _valueFailed;
@@ -53,9 +56,9 @@ internal sealed class BotLabels
 
     // Up to two labels per frame; never gather inventories or mod state from OnGUI.
     // The time budget is checked between bots, all Unity access stays on the main thread.
-    public void Update(BotRoster roster, GameWorld world, Camera camera, float now, float distance, bool showOccluded = false, BotLabelFields fields = BotLabelFields.All, Player? followed = null)
+    public void Update(BotRoster roster, GameWorld world, Camera camera, float now, float distance, bool showOccluded = false, BotLabelFields fields = BotLabelFields.All, Player? followed = null, ulong rows = BotInfoRows.Defaults)
     {
-        if (_fields != fields)
+        if (_fields != fields || _rows != rows)
         {
             foreach (var bot in roster.Labels)
             {
@@ -64,6 +67,14 @@ internal sealed class BotLabels
                 if ((_fields & BotLabelFields.CarriedValue) == 0) bot.NextValue = 0;
             }
             _fields = fields;
+            if (_rows != rows)
+            {
+                _rows = rows;
+                int next = 0;
+                for (int line = 1; line <= BotInfoRows.Count; line++)
+                    for (int index = 0; index < BotInfoRows.Count; index++)
+                        if (BotInfoRows.Get(rows, index) == line) _displayOrder[next++] = index;
+            }
         }
         if (fields == BotLabelFields.None || roster.Labels.Count == 0) return;
         long start = Stopwatch.GetTimestamp();
@@ -97,27 +108,28 @@ internal sealed class BotLabels
     {
         var player = bot.Player;
         var sample = !bot.Human && (fields & BotLabelFields.HostData) != 0 ? _read(player, world, fields) : default;
-        _text.Clear();
-        if ((fields & BotLabelFields.Name) != 0) Append(bot.Name);
+        Array.Clear(_values, 0, _values.Length);
+        if ((fields & BotLabelFields.Name) != 0) Set(BotLabelFields.Name, bot.Name);
         var kindFields = fields & (BotLabelFields.Type | BotLabelFields.RoleDetail);
         if (kindFields != 0)
         {
             string kind = bot.Human ? "Player" : bot.Kind;
             int split = kind.IndexOf(" / ", StringComparison.Ordinal);
-            if (kindFields == (BotLabelFields.Type | BotLabelFields.RoleDetail)) Append(kind);
-            else if (kindFields == BotLabelFields.Type) Append(split < 0 ? kind : kind.Substring(0, split));
-            else if (split >= 0) Append(kind.Substring(split + 3));
+            if ((kindFields & BotLabelFields.Type) != 0) Set(BotLabelFields.Type, split < 0 ? kind : kind.Substring(0, split));
+            if (split >= 0 && (kindFields & BotLabelFields.RoleDetail) != 0) Set(BotLabelFields.RoleDetail, kind.Substring(split + 3));
         }
-        if ((fields & BotLabelFields.Personality) != 0) Append(sample.Behavior.personality);
+        if ((fields & BotLabelFields.Personality) != 0) Set(BotLabelFields.Personality, sample.Behavior.personality);
+        if ((fields & BotLabelFields.Difficulty) != 0 && player.Profile?.Info?.Settings is { } settings)
+            Set(BotLabelFields.Difficulty, "Difficulty: " + settings.BotDifficulty);
         if ((fields & BotLabelFields.Distance) != 0)
         {
             Vector3 origin = followed != null ? followed.Position : camera.transform.position;
-            Append($"{(player.Position - origin).magnitude:0} m");
+            Set(BotLabelFields.Distance, $"{(player.Position - origin).magnitude:0} m");
         }
         if ((fields & BotLabelFields.Health) != 0)
         {
             var health = sample.FromHost ? sample.Health : Health(player);
-            Append(health is { } hp ? $"Health: {hp.current:0}/{hp.maximum:0}" : "Health: unavailable", "\n");
+            Set(BotLabelFields.Health, health is { } hp ? $"Health: {hp.current:0}/{hp.maximum:0}" : "Health: unavailable");
         }
         if ((fields & BotLabelFields.CarriedValue) != 0)
         {
@@ -134,26 +146,44 @@ internal sealed class BotLabels
                 }
             }
             string value = bot.Value.HasValue ? bot.Value.Value.ToString("N0") + " RUB" : "unavailable";
-            Append("Loot value (carried): " + value, "\n");
+            Set(BotLabelFields.CarriedValue, "Loot value (carried): " + value);
         }
-        bool ghost = (fields & BotLabelFields.Ghost) != 0 && sample.Behavior.ghost;
-        if (ghost) Append("Ghost", "\n");
-        bot.LabelWithoutAction = _text.ToString();
+        if ((fields & BotLabelFields.Ghost) != 0 && sample.Behavior.ghost) Set(BotLabelFields.Ghost, "Ghost");
+        bot.LabelWithoutAction = RenderRows();
         string? action = sample.Behavior.action;
         if (!string.IsNullOrEmpty(action) && (fields & ActionField(action!)) != 0)
         {
-            Append(action, ghost ? " | " : "\n");
-            bot.Label = _text.ToString();
+            Set(ActionField(action!), action);
+            bot.Label = RenderRows();
         }
         else bot.Label = bot.LabelWithoutAction;
         bot.Visible = bot.Label.Length != 0;
     }
 
-    private void Append(string? value, string separator = " | ")
+    private void Set(BotLabelFields field, string? value) => _values[BotInfoRows.Index(field)] = value;
+
+    private string RenderRows()
     {
-        if (string.IsNullOrEmpty(value)) return;
-        if (_text.Length != 0) _text.Append(separator);
-        _text.Append(value);
+        _text.Clear();
+        int previousLine = 0;
+        var previousField = BotLabelFields.None;
+        foreach (int index in _displayOrder)
+        {
+            var value = _values[index];
+            if (string.IsNullOrEmpty(value)) continue;
+            int line = BotInfoRows.Get(_rows, index);
+            var field = (BotLabelFields)(1 << index);
+            if (previousLine != 0)
+            {
+                if (line != previousLine) _text.Append('\n');
+                else if (previousField == BotLabelFields.Type && field == BotLabelFields.RoleDetail) _text.Append(" / ");
+                else _text.Append(" | ");
+            }
+            _text.Append(value);
+            previousLine = line;
+            previousField = field;
+        }
+        return _text.ToString();
     }
 
     // The Fika feed carries the same resolved action string as solo. Squad roles occupy

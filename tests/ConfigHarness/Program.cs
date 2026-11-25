@@ -30,7 +30,7 @@ try
     Check(!new SpectatorSettings(new ConfigFile(path, false)).DynamicMapsTracking.Value, "DynamicMaps opt-out survives a restart");
     Check(!fresh.UseSpectatorFov.Value && fresh.ShowHumanLabels.Value && fresh.ShowDistance.Value &&
         !fresh.ActionsOnlyWhenFollowing.Value && fresh.UseFikaSelection.Value && fresh.HideExtractedWeapon.Value, "Spectator roadmap defaults, including actions for everyone");
-    Check(fresh.LabelOptions.Length == 10 && fresh.LabelOptions.Select(x => x.Field).Distinct().Count() == 10
+    Check(fresh.LabelOptions.Length == 11 && fresh.LabelOptions.Select(x => x.Field).Distinct().Count() == 11
         && fresh.VisibleLabelFields == BotLabelFields.All, "Every existing label field has an independent switch, on by default");
     foreach (var (field, setting) in fresh.LabelOptions)
     {
@@ -39,6 +39,10 @@ try
         Check(new SpectatorSettings(new ConfigFile(path, false)).VisibleLabelFields == fresh.VisibleLabelFields, $"{field} survives restart");
         setting.Value = true;
     }
+    int healthIndex = BotInfoRows.Index(BotLabelFields.Health);
+    fresh.LabelLines[healthIndex].Value = 8;
+    Check(BotInfoRows.Get(fresh.LabelRows, healthIndex) == 8, "Changing the health line updates the active layout");
+    Check(new SpectatorSettings(new ConfigFile(path, false)).LabelRows == fresh.LabelRows, "Custom label rows survive a restart");
     var previous = Path.Combine(dir, "previous-horizon.cfg");
     File.WriteAllText(previous, "[Interface]\nShow distance on labels = false\nShow actions only for followed bot = true\n");
     var upgraded = new SpectatorSettings(new ConfigFile(previous, false));

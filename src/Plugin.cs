@@ -55,6 +55,7 @@ public sealed partial class Plugin : BaseUnityPlugin
     private FikaSpectator? _fika;
     private FikaBotFeed? _fikaFeed;
     private SpectatorMapHud? _mapHud;
+    private DynamicMiniMapDrag? _mapDrag;
     private bool _botToolsEnabled = true; // Solo permits bot spectating; Fika sets this on camera attachment.
     private bool CanUseBotDebug => _botToolsEnabled && _botDebugReady && (_fika == null || _fika.IsHost());
     private bool CameraWatching => _cameraActive && (_fika != null || _session.Watching);
@@ -143,6 +144,8 @@ public sealed partial class Plugin : BaseUnityPlugin
                             ? screen.GetComponentInChildren(peekType, true)?.transform : null;
                     });
                     Logger.LogInfo("DynamicMaps spectator tracking ready.");
+                    try { _mapDrag = new DynamicMiniMapDrag(maps.Instance); }
+                    catch (Exception e) { Logger.LogWarning("DynamicMaps mini-map dragging unavailable: " + e.Message); }
                 }
                 catch (Exception e) { Logger.LogWarning("DynamicMaps spectator tracking unavailable: " + e); }
             }
@@ -392,7 +395,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         if (_botToolsEnabled && _settings.ShowBotList.Value && _fika != null && !_fika.IsHost())
             _fikaFeed?.PollRoster(_roster, world, Time.unscaledTime);
         if (_overlay.Mode == SpectatorOverlay.BotInfo && _camera.Camera != null)
-            _labels.Update(_roster, world, _camera.Camera, Time.unscaledTime, _settings.EffectiveLabelDistance, _settings.ShowOccludedBots.Value, _settings.VisibleLabelFields, FollowedActor);
+            _labels.Update(_roster, world, _camera.Camera, Time.unscaledTime, _settings.EffectiveLabelDistance, _settings.ShowOccludedBots.Value, _settings.VisibleLabelFields, FollowedActor, _settings.LabelRows);
     }
 
     private void LateUpdate()
@@ -665,7 +668,7 @@ public sealed partial class Plugin : BaseUnityPlugin
 
     private void OnGUI()
     {
-        if (!CameraWatching || ConfigurationIsOpen()) return;
+        if (!CameraWatching || ConfigurationIsOpen()) { _mapDrag?.Cancel(); return; }
         float scale = SpectatorInterface.Scale(Screen.height, _settings.AutomaticScale.Value, _settings.InterfaceScale.Value);
         if (_titleStyle == null || _interfaceScale != scale)
         {
@@ -697,6 +700,7 @@ public sealed partial class Plugin : BaseUnityPlugin
         if (_overlay.Mode == SpectatorOverlay.BotInfo) DrawBotLabels(scale);
         if (_botToolsEnabled && _settings.ShowBotList.Value) DrawBotList(scale);
         else _listPanel.Reset();
+        _mapDrag?.Handle(CameraMenu, (_menuOpen || _settings.ShowHelp.Value) && MainPanelRect(scale).Contains(Event.current.mousePosition));
         if (!_menuOpen && !_settings.ShowHelp.Value) return;
         float marginX = 16 * scale, marginY = 20 * scale;
         float width = Mathf.Max(1, Mathf.Min((_menuOpen ? 400 : 330) * scale, Screen.width - marginX * 2));
@@ -803,7 +807,15 @@ public sealed partial class Plugin : BaseUnityPlugin
                 GUILayout.Label("Bot info fields", _titleStyle);
                 foreach (var (field, setting) in _settings.LabelOptions)
                     if (_botToolsEnabled || (field & BotLabelFields.Human) != 0)
+                    {
+                        var line = _settings.LabelLines[BotInfoRows.Index(field)];
+                        GUILayout.BeginHorizontal();
                         setting.Value = GUILayout.Toggle(setting.Value, setting.Definition.Key, _toggleStyle);
+                        if (GUILayout.Button("-", _buttonStyle, GUILayout.Width(25 * scale))) line.Value = Mathf.Max(1, line.Value - 1);
+                        GUILayout.Label("Line " + line.Value, _textStyle, GUILayout.Width(55 * scale));
+                        if (GUILayout.Button("+", _buttonStyle, GUILayout.Width(25 * scale))) line.Value = Mathf.Min(BotInfoRows.Count, line.Value + 1);
+                        GUILayout.EndHorizontal();
+                    }
                 if (_botToolsEnabled)
                     _settings.ActionsOnlyWhenFollowing.Value = GUILayout.Toggle(_settings.ActionsOnlyWhenFollowing.Value, "Show actions only for the followed bot", _toggleStyle);
                 _settings.ShowOccludedBots.Value = GUILayout.Toggle(_settings.ShowOccludedBots.Value, "Show labels through scenery", _toggleStyle);

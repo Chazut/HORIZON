@@ -95,7 +95,7 @@ namespace EFT
 {
     public enum EPointOfView { FirstPerson, FreeCamera, ThirdPerson }
     public enum WildSpawnType { pmcBEAR, pmcUSEC, assault, boss, follower, pmcBot }
-    public class Settings { public WildSpawnType Role; }
+    public class Settings { public WildSpawnType Role; public string BotDifficulty = "hard"; }
     public class Info { public Settings Settings = new(); public string? GroupId; }
     public class Profile { public string Nickname = "test"; public Info Info = new(); }
     public enum EBodyPart { Common }

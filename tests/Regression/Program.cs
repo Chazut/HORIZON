@@ -176,6 +176,14 @@ string dynamicMapsPath = Path.Combine(root, "BepInEx/plugins/mpstark-dynamicmaps
 if (File.Exists(dynamicMapsPath))
 {
     using var maps = AssemblyDefinition.ReadAssembly(dynamicMapsPath);
+    var mapScreen = maps.MainModule.GetType("DynamicMaps.UI.ModdedMapScreen");
+    var dmSettings = maps.MainModule.GetType("DynamicMaps.Config.Settings");
+    Check(maps.MainModule.GetType("DynamicMaps.Plugin").Fields.Any(f => f.Name == "Map" && f.FieldType.FullName == mapScreen.FullName) &&
+        mapScreen.Fields.Any(f => f.Name == "_scrollMask" && f.FieldType.Name == "Mask") &&
+        mapScreen.Properties.Any(p => p.Name == "ShowingMiniMap" && p.GetMethod != null) &&
+        new[] { "MiniMapScreenOffsetX", "MiniMapScreenOffsetY" }.All(name => dmSettings.Fields.Any(f =>
+            f.IsStatic && f.Name == name && f.FieldType.FullName.Contains("ConfigEntry\u00601<System.Single>"))),
+        "Draggable minimap resolves its viewport, mode and native saved offsets on installed DynamicMaps");
     foreach (var (type, methodName) in new[] {
         ("UI.ModdedMapScreen", "OnShowInRaid"), ("UI.ModdedMapScreen", "CenterOnPlayer"),
         ("UI.ModdedMapScreen", "OnZoomMain"), ("UI.ModdedMapScreen", "OnZoomMini"),

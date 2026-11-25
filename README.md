@@ -41,7 +41,7 @@ Updating from a build installed in `BepInEx/plugins/RaidSpectator`? Remove that 
 
 ORBIT, BotDebug and Killcam are optional. With ORBIT, enable **Wake for spectators** to observe awake bots.
 
-If you use DynamicMaps, your map arrow follows the free camera. Attach to a bot or teammate and the arrow shows their position, floor and heading, even while you orbit them. Detach to track the camera again. You can turn **Track spectator on DynamicMaps** off in the spectator menu or F12.
+If you use DynamicMaps, your map arrow follows the free camera. Attach to a bot or teammate and the arrow shows their position, floor and heading, even while you orbit them. Detach to track the camera again. Hold **Left Alt** (or open the spectator menu) and drag the mini-map to move it. Dropping it saves the new position in DynamicMaps. You can turn **Track spectator on DynamicMaps** off in the spectator menu or F12.
 
 ## Controls
 
@@ -51,7 +51,7 @@ Use Freecam's usual movement controls. **Mouse wheel** visits bots; **Escape** o
 
 **Bot info** is the default overlay. Press **F3** to hide or show labels while spectating. The next raid starts with the overlay selected in your settings. You can rebind F3 in F12.
 
-Open **Bot info fields** in the spectator menu to choose what each label shows. Name, type, faction or role, SAIN personality, distance, health, carried value, ORBIT Ghost status, current action and COMET squad tactics are all on by default. Each has its own switch. You can show a squad tactic on its own, or turn every field off to hide the labels. The same switches are in **F12 > HORIZON**.
+Open **Bot info fields** in the spectator menu to choose what each label shows. Name, type, faction or role, SAIN personality, bot difficulty, distance, health, carried value, ORBIT Ghost status, current action and COMET squad tactics are all on by default. Each has its own switch. Use **- / +** beside a field to choose its line. Fields assigned to the same line appear together and empty lines are skipped. You can show a squad tactic on its own, or turn every field off to hide the labels. The same switches are in **F12 > HORIZON**.
 
 In Fika, other living players get a label with their name and health. Labels show distance in metres from the free camera or from the player or bot you are following. **Show player labels** and **Show distance on labels** are both on by default. All bot actions are visible by default. Enable **Show actions only for followed bot** to hide action lines on the other labels. In freecam that filter hides every action line.
 
